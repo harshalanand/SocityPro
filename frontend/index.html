@@ -1,0 +1,1329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SocietyPro — Society Management System</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/recharts@2.12.2/umd/Recharts.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0d0f14;
+      --surface: #13161e;
+      --surface2: #1a1f2c;
+      --surface3: #212638;
+      --border: #2a3047;
+      --border2: #323a55;
+      --accent: #4f7cff;
+      --accent2: #7c4fff;
+      --accent-glow: rgba(79,124,255,0.15);
+      --green: #22c55e;
+      --red: #ef4444;
+      --orange: #f97316;
+      --yellow: #eab308;
+      --text: #e8eaf0;
+      --text2: #8892b0;
+      --text3: #4a5578;
+      --radius: 12px;
+      --radius-sm: 8px;
+      --shadow: 0 4px 24px rgba(0,0,0,0.4);
+    }
+    body { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+    #root { display: flex; height: 100vh; overflow: hidden; }
+    .scrollbar::-webkit-scrollbar { width: 4px; }
+    .scrollbar::-webkit-scrollbar-track { background: transparent; }
+    .scrollbar::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useCallback, useRef, createContext, useContext } = React;
+const { AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } = Recharts;
+
+// ─── Mock Data ────────────────────────────────────────────────────────────────
+const MOCK_USER = { id:1, full_name:"Super Admin", email:"admin@societypro.com", role:"superadmin", society_id:null };
+const MOCK_SOCIETIES = [
+  { id:1, name:"Green Valley Residency", code:"GVR001", city:"Bengaluru", state:"Karnataka", total_units:120, is_active:true, total_users:95 },
+  { id:2, name:"Sunrise Heights", code:"SRH002", city:"Mumbai", state:"Maharashtra", total_units:80, is_active:true, total_users:62 },
+  { id:3, name:"Harmony Park", code:"HMP003", city:"Hyderabad", state:"Telangana", total_units:200, is_active:true, total_users:178 },
+];
+const MONTHLY_DATA = [
+  {month:"Oct",income:285000,expense:120000},{month:"Nov",income:295000,expense:135000},
+  {month:"Dec",income:310000,expense:180000},{month:"Jan",income:302000,expense:125000},
+  {month:"Feb",income:315000,expense:142000},{month:"Mar",income:328000,expense:138000},
+];
+const EXPENSE_CATS = [
+  {category:"Maintenance",amount:42000},{category:"Security",amount:35000},
+  {category:"Electricity",amount:28000},{category:"Cleaning",amount:18000},
+  {category:"Repairs",amount:15000},{category:"Other",amount:8000},
+];
+const PIE_COLORS = ["#4f7cff","#7c4fff","#22c55e","#f97316","#eab308","#8892b0"];
+const MOCK_COMPLAINTS = [
+  {id:1,title:"Water leakage in B-201",category:"Plumbing",status:"open",priority:"high",created_at:"2025-03-18"},
+  {id:2,title:"Lift not working",category:"Electrical",status:"in_progress",priority:"high",created_at:"2025-03-17"},
+  {id:3,title:"Parking issue near gate",category:"Security",status:"resolved",priority:"medium",created_at:"2025-03-15"},
+  {id:4,title:"Garbage not collected",category:"Housekeeping",status:"open",priority:"low",created_at:"2025-03-14"},
+];
+const MOCK_BILLS = [
+  {id:1,flat_no:"A-101",bill_month:3,bill_year:2025,total_amount:3500,paid_amount:3500,status:"paid",due_date:"2025-03-10"},
+  {id:2,flat_no:"A-102",bill_month:3,bill_year:2025,total_amount:3500,paid_amount:0,status:"pending",due_date:"2025-03-10"},
+  {id:3,flat_no:"B-201",bill_month:3,bill_year:2025,total_amount:4200,paid_amount:0,status:"overdue",due_date:"2025-03-10"},
+  {id:4,flat_no:"B-202",bill_month:3,bill_year:2025,total_amount:4200,paid_amount:4200,status:"paid",due_date:"2025-03-10"},
+  {id:5,flat_no:"C-301",bill_month:3,bill_year:2025,total_amount:5500,paid_amount:2000,status:"partial",due_date:"2025-03-10"},
+];
+const MOCK_TRANSACTIONS = [
+  {id:1,transaction_type:"income",category:"maintenance",amount:3500,description:"Mar 2025 Maintenance - A-101",transaction_date:"2025-03-05",payment_mode:"UPI"},
+  {id:2,transaction_type:"expense",category:"Security",amount:35000,description:"Security staff salary - Mar 2025",transaction_date:"2025-03-01",payment_mode:"NEFT"},
+  {id:3,transaction_type:"expense",category:"Electricity",amount:18500,description:"Common area electricity bill",transaction_date:"2025-03-08",payment_mode:"Online"},
+  {id:4,transaction_type:"income",category:"maintenance",amount:4200,description:"Mar 2025 Maintenance - B-202",transaction_date:"2025-03-06",payment_mode:"NEFT"},
+  {id:5,transaction_type:"expense",category:"Repairs",amount:8200,description:"Lift servicing",transaction_date:"2025-03-10",payment_mode:"Cash"},
+];
+const MOCK_ANNOUNCEMENTS = [
+  {id:1,title:"Annual General Meeting",content:"AGM scheduled for April 15, 2025 at 6:00 PM in the clubhouse. All residents are requested to attend.",category:"event",is_pinned:true,publish_date:"2025-03-20"},
+  {id:2,title:"Water Supply Interruption",content:"Water supply will be interrupted on March 25 from 10 AM to 2 PM for maintenance work.",category:"notice",is_pinned:false,publish_date:"2025-03-19"},
+  {id:3,title:"New Security Protocol",content:"All visitors must now show OTP before entry. Please ensure guests are pre-registered.",category:"general",is_pinned:false,publish_date:"2025-03-15"},
+];
+const MOCK_ASSETS = [
+  {id:1,name:"Elevator - Tower A",category:"Lift",status:"active",purchase_value:850000,last_service_date:"2025-02-15",next_service_date:"2025-05-15"},
+  {id:2,name:"DG Set - 200KVA",category:"Generator",status:"active",purchase_value:650000,last_service_date:"2025-01-10",next_service_date:"2025-04-10"},
+  {id:3,name:"Submersible Pump",category:"Water",status:"maintenance",purchase_value:45000,last_service_date:"2025-03-01",next_service_date:"2025-06-01"},
+];
+const MOCK_VENDORS = [
+  {id:1,name:"SecureGuard Services",category:"Security",contact_person:"Ramesh Kumar",mobile:"9876543210",is_active:true,rating:4.5},
+  {id:2,name:"CleanPro Solutions",category:"Housekeeping",contact_person:"Priya S",mobile:"9865432109",is_active:true,rating:4.2},
+  {id:3,name:"TechLift India",category:"Elevator",contact_person:"Arun Mehta",mobile:"9854321098",is_active:true,rating:4.8},
+];
+const MOCK_VISITORS = [
+  {id:1,visitor_name:"Delivery - Amazon",purpose:"Delivery",status:"checked_out",check_in_time:"2025-03-22 10:30",check_out_time:"2025-03-22 10:45"},
+  {id:2,visitor_name:"Suresh Patel",purpose:"Meeting resident",status:"checked_in",check_in_time:"2025-03-22 14:00",check_out_time:null},
+  {id:3,visitor_name:"Plumber - Raju",purpose:"Repair work",status:"pending",check_in_time:null,check_out_time:null},
+];
+
+// ─── Context ─────────────────────────────────────────────────────────────────
+const AppCtx = createContext(null);
+const useApp = () => useContext(AppCtx);
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+const fmt = (n) => new Intl.NumberFormat('en-IN', { style:'currency', currency:'INR', maximumFractionDigits:0 }).format(n||0);
+const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-IN') : '-';
+const cls = (...c) => c.filter(Boolean).join(' ');
+
+// ─── UI Primitives ────────────────────────────────────────────────────────────
+const Badge = ({ label, color='blue', size='sm' }) => {
+  const colors = {
+    blue:'background:#1e3a5f;color:#4f9eff', green:'background:#14532d;color:#4ade80',
+    red:'background:#450a0a;color:#f87171', orange:'background:#431407;color:#fb923c',
+    yellow:'background:#422006;color:#facc15', gray:'background:#1f2937;color:#9ca3af',
+    purple:'background:#2e1065;color:#c084fc'
+  };
+  const s = colors[color] || colors.blue;
+  const sz = size === 'sm' ? 'font-size:11px;padding:2px 8px' : 'font-size:12px;padding:3px 10px';
+  return <span style={{borderRadius:'20px',fontWeight:600,display:'inline-block',...Object.fromEntries(s.split(';').map(x=>x.split(':'))),fontSize:size==='sm'?'11px':'12px',padding:size==='sm'?'2px 8px':'3px 10px'}}>{label}</span>;
+};
+
+const statusBadge = (s) => {
+  const map = {open:['open','red'],in_progress:['in progress','orange'],resolved:['resolved','green'],closed:['closed','gray'],
+    paid:['paid','green'],pending:['pending','orange'],overdue:['overdue','red'],partial:['partial','yellow'],
+    checked_in:['in','green'],checked_out:['out','gray'],active:['active','green'],maintenance:['maintenance','yellow']};
+  const [label, color] = map[s] || [s, 'gray'];
+  return <Badge label={label} color={color} />;
+};
+
+const Card = ({ children, style={}, className='' }) => (
+  <div className={className} style={{ background:'var(--surface)',border:'1px solid var(--border)',borderRadius:'var(--radius)',padding:'20px',...style }}>{children}</div>
+);
+
+const StatCard = ({ label, value, sub, icon, trend, color='accent' }) => {
+  const c = { accent:'#4f7cff', green:'#22c55e', red:'#ef4444', orange:'#f97316', purple:'#7c4fff' }[color];
+  return (
+    <div style={{ background:'var(--surface)',border:'1px solid var(--border)',borderRadius:'var(--radius)',padding:'20px',position:'relative',overflow:'hidden' }}>
+      <div style={{ position:'absolute',top:0,right:0,width:80,height:80,borderRadius:'0 12px 0 80px',background:`${c}15`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:24 }}>{icon}</div>
+      <div style={{ color:'var(--text2)',fontSize:12,fontWeight:600,textTransform:'uppercase',letterSpacing:1,marginBottom:8 }}>{label}</div>
+      <div style={{ fontSize:26,fontWeight:800,color:'var(--text)',marginBottom:4 }}>{value}</div>
+      {sub && <div style={{ fontSize:12,color:'var(--text3)' }}>{sub}</div>}
+      {trend !== undefined && <div style={{ fontSize:12,color:trend>=0?'var(--green)':'var(--red)',marginTop:4,fontWeight:600 }}>{trend>=0?'↑':'↓'} {Math.abs(trend)}% vs last month</div>}
+    </div>
+  );
+};
+
+const Button = ({ children, onClick, variant='primary', size='md', disabled=false, style={} }) => {
+  const variants = {
+    primary:{ background:'var(--accent)',color:'#fff',border:'none' },
+    secondary:{ background:'var(--surface3)',color:'var(--text)',border:'1px solid var(--border)' },
+    danger:{ background:'var(--red)',color:'#fff',border:'none' },
+    ghost:{ background:'transparent',color:'var(--text2)',border:'none' },
+    success:{ background:'var(--green)',color:'#fff',border:'none' },
+  };
+  const sizes = { sm:{ fontSize:12,padding:'6px 12px' }, md:{ fontSize:13,padding:'9px 16px' }, lg:{ fontSize:14,padding:'11px 20px' } };
+  return (
+    <button onClick={onClick} disabled={disabled} style={{ ...variants[variant],...sizes[size],borderRadius:'var(--radius-sm)',cursor:disabled?'not-allowed':'pointer',fontFamily:'inherit',fontWeight:600,opacity:disabled?0.5:1,transition:'all 0.15s',...style }}>
+      {children}
+    </button>
+  );
+};
+
+const Input = ({ label, value, onChange, type='text', placeholder='', required=false, style={} }) => (
+  <div style={{ marginBottom:14 }}>
+    {label && <label style={{ display:'block',fontSize:12,fontWeight:600,color:'var(--text2)',marginBottom:6,textTransform:'uppercase',letterSpacing:0.5 }}>{label}{required&&<span style={{color:'var(--red)'}}> *</span>}</label>}
+    <input type={type} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder}
+      style={{ width:'100%',background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:'var(--radius-sm)',padding:'9px 12px',color:'var(--text)',fontSize:13,fontFamily:'inherit',outline:'none',...style }} />
+  </div>
+);
+
+const Select = ({ label, value, onChange, options, required=false }) => (
+  <div style={{ marginBottom:14 }}>
+    {label && <label style={{ display:'block',fontSize:12,fontWeight:600,color:'var(--text2)',marginBottom:6,textTransform:'uppercase',letterSpacing:0.5 }}>{label}{required&&<span style={{color:'var(--red)'}}> *</span>}</label>}
+    <select value={value} onChange={e=>onChange(e.target.value)}
+      style={{ width:'100%',background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:'var(--radius-sm)',padding:'9px 12px',color:'var(--text)',fontSize:13,fontFamily:'inherit',outline:'none' }}>
+      {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+    </select>
+  </div>
+);
+
+const Modal = ({ open, onClose, title, children, width=520 }) => {
+  if (!open) return null;
+  return (
+    <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.7)',backdropFilter:'blur(4px)',zIndex:1000,display:'flex',alignItems:'center',justifyContent:'center',padding:20 }}
+      onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
+      <div style={{ background:'var(--surface)',border:'1px solid var(--border)',borderRadius:'var(--radius)',width:'100%',maxWidth:width,maxHeight:'90vh',overflow:'auto' }}>
+        <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',padding:'18px 24px',borderBottom:'1px solid var(--border)' }}>
+          <h3 style={{ fontSize:16,fontWeight:700 }}>{title}</h3>
+          <button onClick={onClose} style={{ background:'none',border:'none',color:'var(--text2)',cursor:'pointer',fontSize:20,lineHeight:1 }}>×</button>
+        </div>
+        <div style={{ padding:'24px' }}>{children}</div>
+      </div>
+    </div>
+  );
+};
+
+const Toast = ({ message, type='success', onClose }) => {
+  useEffect(() => { const t = setTimeout(onClose, 3000); return ()=>clearTimeout(t); }, []);
+  const colors = { success:'#22c55e', error:'#ef4444', info:'#4f7cff' };
+  return (
+    <div style={{ position:'fixed',bottom:24,right:24,zIndex:9999,background:'var(--surface)',border:`1px solid ${colors[type]}`,borderLeft:`4px solid ${colors[type]}`,borderRadius:'var(--radius-sm)',padding:'12px 16px',color:'var(--text)',fontSize:13,fontWeight:500,boxShadow:'var(--shadow)',maxWidth:360,animation:'slideIn 0.2s ease' }}>
+      {message}
+    </div>
+  );
+};
+
+const Table = ({ columns, data, onRowClick }) => (
+  <div style={{ overflowX:'auto' }}>
+    <table style={{ width:'100%',borderCollapse:'collapse',fontSize:13 }}>
+      <thead>
+        <tr>{columns.map(c=><th key={c.key} style={{ padding:'10px 14px',textAlign:'left',fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:0.5,color:'var(--text3)',borderBottom:'1px solid var(--border)' }}>{c.label}</th>)}</tr>
+      </thead>
+      <tbody>
+        {data.length===0?<tr><td colSpan={columns.length} style={{textAlign:'center',padding:32,color:'var(--text3)'}}>No data found</td></tr>:
+        data.map((row,i)=>(
+          <tr key={i} onClick={()=>onRowClick&&onRowClick(row)} style={{ borderBottom:'1px solid var(--border)',cursor:onRowClick?'pointer':'default',transition:'background 0.1s' }}
+            onMouseEnter={e=>e.currentTarget.style.background='var(--surface2)'}
+            onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+            {columns.map(c=><td key={c.key} style={{ padding:'12px 14px' }}>{c.render?c.render(row[c.key],row):row[c.key]??'-'}</td>)}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+);
+
+// ─── Sidebar ──────────────────────────────────────────────────────────────────
+const NAV = [
+  { id:'dashboard', label:'Dashboard', icon:'📊', roles:['all'] },
+  { id:'societies', label:'Societies', icon:'🏘️', roles:['superadmin'] },
+  { id:'users', label:'Users', icon:'👥', roles:['superadmin','admin'] },
+  { id:'billing', label:'Billing', icon:'💰', roles:['all'] },
+  { id:'transactions', label:'Ledger', icon:'📒', roles:['all'] },
+  { id:'complaints', label:'Complaints', icon:'🔧', roles:['all'] },
+  { id:'visitors', label:'Visitors', icon:'🚪', roles:['all'] },
+  { id:'announcements', label:'Announcements', icon:'📢', roles:['all'] },
+  { id:'assets', label:'Assets', icon:'⚙️', roles:['admin','superadmin'] },
+  { id:'vendors', label:'Vendors', icon:'🤝', roles:['admin','superadmin'] },
+  { id:'budget', label:'Budget', icon:'📈', roles:['admin','superadmin'] },
+  { id:'polls', label:'Polls', icon:'🗳️', roles:['all'] },
+  { id:'reports', label:'Reports', icon:'📋', roles:['admin','superadmin'] },
+  { id:'audit', label:'Audit Log', icon:'🔍', roles:['admin','superadmin'] },
+  { id:'settings', label:'Settings', icon:'⚙️', roles:['superadmin','admin'] },
+];
+
+const Sidebar = ({ page, setPage, user, collapsed, setCollapsed }) => {
+  const nav = NAV.filter(n => n.roles.includes('all') || n.roles.includes(user?.role));
+  return (
+    <div style={{ width:collapsed?64:240,minWidth:collapsed?64:240,background:'var(--surface)',borderRight:'1px solid var(--border)',display:'flex',flexDirection:'column',transition:'width 0.2s',overflow:'hidden' }}>
+      {/* Logo */}
+      <div style={{ padding:'20px 16px',borderBottom:'1px solid var(--border)',display:'flex',alignItems:'center',gap:10 }}>
+        <div style={{ width:36,height:36,minWidth:36,background:'var(--accent)',borderRadius:10,display:'flex',alignItems:'center',justifyContent:'center',fontSize:18 }}>🏠</div>
+        {!collapsed && <div><div style={{ fontSize:15,fontWeight:800,color:'var(--text)' }}>SocietyPro</div><div style={{ fontSize:10,color:'var(--text3)',fontWeight:600 }}>MANAGEMENT SYSTEM</div></div>}
+      </div>
+      {/* Nav Items */}
+      <nav style={{ flex:1,overflowY:'auto',padding:'8px 8px' }} className="scrollbar">
+        {nav.map(n=>(
+          <button key={n.id} onClick={()=>setPage(n.id)}
+            style={{ width:'100%',display:'flex',alignItems:'center',gap:10,padding:collapsed?'10px':'10px 12px',borderRadius:'var(--radius-sm)',border:'none',background:page===n.id?'var(--accent-glow)':'transparent',color:page===n.id?'var(--accent)':'var(--text2)',cursor:'pointer',fontFamily:'inherit',fontSize:13,fontWeight:page===n.id?700:500,marginBottom:2,transition:'all 0.15s',justifyContent:collapsed?'center':'flex-start' }}>
+            <span style={{ fontSize:16,minWidth:20,textAlign:'center' }}>{n.icon}</span>
+            {!collapsed && <span>{n.label}</span>}
+            {!collapsed && page===n.id && <div style={{ marginLeft:'auto',width:3,height:16,background:'var(--accent)',borderRadius:2 }}/>}
+          </button>
+        ))}
+      </nav>
+      {/* User info */}
+      <div style={{ padding:'12px 8px',borderTop:'1px solid var(--border)' }}>
+        <button onClick={()=>setCollapsed(!collapsed)} style={{ width:'100%',display:'flex',alignItems:'center',gap:10,padding:'8px 12px',borderRadius:'var(--radius-sm)',border:'none',background:'transparent',color:'var(--text2)',cursor:'pointer',fontFamily:'inherit',fontSize:12,justifyContent:collapsed?'center':'flex-start' }}>
+          <span style={{ fontSize:14 }}>{collapsed?'→':'←'}</span>
+          {!collapsed && 'Collapse'}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// ─── Header ───────────────────────────────────────────────────────────────────
+const Header = ({ title, user, onLogout, onSocietyChange, societies, currentSociety }) => (
+  <div style={{ height:58,background:'var(--surface)',borderBottom:'1px solid var(--border)',display:'flex',alignItems:'center',padding:'0 24px',gap:16,flexShrink:0 }}>
+    <div style={{ flex:1 }}>
+      <h1 style={{ fontSize:18,fontWeight:700,color:'var(--text)' }}>{title}</h1>
+    </div>
+    {user?.role==='superadmin' && societies.length>0 && (
+      <div style={{ display:'flex',alignItems:'center',gap:8 }}>
+        <span style={{ fontSize:12,color:'var(--text3)',fontWeight:600 }}>VIEWING:</span>
+        <select value={currentSociety?.id||'all'} onChange={e=>onSocietyChange(e.target.value==='all'?null:societies.find(s=>s.id==e.target.value))}
+          style={{ background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:'var(--radius-sm)',padding:'5px 10px',color:'var(--text)',fontSize:12,fontFamily:'inherit',cursor:'pointer' }}>
+          <option value="all">All Societies</option>
+          {societies.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
+        </select>
+      </div>
+    )}
+    <div style={{ display:'flex',alignItems:'center',gap:8 }}>
+      <div style={{ width:32,height:32,background:'var(--accent)',borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:700,color:'#fff' }}>
+        {user?.full_name?.[0]?.toUpperCase()}
+      </div>
+      <div>
+        <div style={{ fontSize:12,fontWeight:600,color:'var(--text)' }}>{user?.full_name}</div>
+        <div style={{ fontSize:10,color:'var(--accent)',textTransform:'capitalize',fontWeight:700 }}>{user?.role}</div>
+      </div>
+      <Button variant="ghost" size="sm" onClick={onLogout} style={{ marginLeft:8 }}>Logout</Button>
+    </div>
+  </div>
+);
+
+// ─── LOGIN PAGE ───────────────────────────────────────────────────────────────
+const LoginPage = ({ onLogin }) => {
+  const [email, setEmail] = useState('admin@societypro.com');
+  const [password, setPassword] = useState('Admin@123');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleLogin = async () => {
+    setLoading(true); setError('');
+    await new Promise(r=>setTimeout(r,600));
+    if(email==='admin@societypro.com'&&password==='Admin@123') {
+      onLogin(MOCK_USER);
+    } else {
+      setError('Invalid credentials. Try admin@societypro.com / Admin@123');
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div style={{ minHeight:'100vh',background:'var(--bg)',display:'flex',alignItems:'center',justifyContent:'center' }}>
+      <div style={{ position:'absolute',inset:0,background:'radial-gradient(ellipse at 30% 50%, rgba(79,124,255,0.06) 0%, transparent 60%), radial-gradient(ellipse at 70% 20%, rgba(124,79,255,0.06) 0%, transparent 60%)' }}/>
+      <div style={{ width:420,position:'relative',zIndex:1 }}>
+        <div style={{ textAlign:'center',marginBottom:40 }}>
+          <div style={{ width:64,height:64,background:'var(--accent)',borderRadius:18,display:'flex',alignItems:'center',justifyContent:'center',fontSize:30,margin:'0 auto 16px' }}>🏠</div>
+          <h1 style={{ fontSize:28,fontWeight:800,marginBottom:6 }}>SocietyPro</h1>
+          <p style={{ color:'var(--text2)',fontSize:14 }}>Society Management System</p>
+        </div>
+        <Card style={{ padding:32 }}>
+          <Input label="Email Address" value={email} onChange={setEmail} type="email" placeholder="admin@societypro.com" required />
+          <Input label="Password" value={password} onChange={setPassword} type="password" placeholder="••••••••" required />
+          {error && <div style={{ background:'#450a0a',border:'1px solid var(--red)',borderRadius:'var(--radius-sm)',padding:'10px 12px',fontSize:13,color:'#f87171',marginBottom:12 }}>{error}</div>}
+          <Button onClick={handleLogin} disabled={loading} style={{ width:'100%',justifyContent:'center' }}>
+            {loading ? 'Signing in...' : 'Sign In'}
+          </Button>
+          <div style={{ marginTop:20,padding:'14px 16px',background:'var(--surface2)',borderRadius:'var(--radius-sm)',fontSize:12,color:'var(--text3)' }}>
+            <strong style={{color:'var(--text2)'}}>Demo credentials:</strong><br/>
+            Email: admin@societypro.com<br/>Password: Admin@123
+          </div>
+        </Card>
+      </div>
+    </div>
+  );
+};
+
+// ─── DASHBOARD PAGE ───────────────────────────────────────────────────────────
+const DashboardPage = ({ society }) => {
+  const stats = [
+    {label:'Total Collection',value:fmt(1285000),sub:'FY 2024-25',icon:'💰',color:'accent',trend:8.3},
+    {label:'Total Expenses',value:fmt(638000),sub:'FY 2024-25',icon:'📤',color:'orange',trend:-3.2},
+    {label:'Reserve Fund',value:fmt(647000),sub:'Available balance',icon:'🏦',color:'green',trend:12.1},
+    {label:'Pending Dues',value:fmt(142500),sub:'28 outstanding bills',icon:'⏰',color:'red',trend:5.4},
+    {label:'Total Flats',value:'120',sub:'96 occupied (80%)',icon:'🏠',color:'purple'},
+    {label:'Active Complaints',value:'8',sub:'2 high priority',icon:'🔧',color:'orange'},
+  ];
+
+  return (
+    <div style={{ padding:24,overflowY:'auto',flex:1 }} className="scrollbar">
+      {society && <div style={{ marginBottom:16,padding:'10px 16px',background:'var(--surface2)',borderRadius:'var(--radius-sm)',display:'flex',alignItems:'center',gap:8,fontSize:13 }}>
+        <span>🏘️</span><strong>{society.name}</strong><span style={{color:'var(--text3)'}}>—</span><span style={{color:'var(--text2)'}}>{society.city}, {society.state}</span>
+      </div>}
+      <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(220px,1fr))',gap:14,marginBottom:24 }}>
+        {stats.map(s=><StatCard key={s.label} {...s} />)}
+      </div>
+      <div style={{ display:'grid',gridTemplateColumns:'2fr 1fr',gap:16,marginBottom:16 }}>
+        <Card>
+          <h3 style={{ fontSize:14,fontWeight:700,marginBottom:16,color:'var(--text2)' }}>Income vs Expense (6 Months)</h3>
+          <ResponsiveContainer width="100%" height={220}>
+            <AreaChart data={MONTHLY_DATA}>
+              <defs>
+                <linearGradient id="gI" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#4f7cff" stopOpacity={0.3}/><stop offset="95%" stopColor="#4f7cff" stopOpacity={0}/></linearGradient>
+                <linearGradient id="gE" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#f97316" stopOpacity={0.3}/><stop offset="95%" stopColor="#f97316" stopOpacity={0}/></linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+              <XAxis dataKey="month" tick={{fill:'var(--text3)',fontSize:11}} />
+              <YAxis tick={{fill:'var(--text3)',fontSize:11}} tickFormatter={v=>`₹${(v/1000).toFixed(0)}k`} />
+              <Tooltip formatter={v=>`₹${v.toLocaleString()}`} contentStyle={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:8,fontSize:12}} />
+              <Area type="monotone" dataKey="income" stroke="#4f7cff" fill="url(#gI)" strokeWidth={2} name="Income" />
+              <Area type="monotone" dataKey="expense" stroke="#f97316" fill="url(#gE)" strokeWidth={2} name="Expense" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </Card>
+        <Card>
+          <h3 style={{ fontSize:14,fontWeight:700,marginBottom:16,color:'var(--text2)' }}>Expense Breakdown</h3>
+          <ResponsiveContainer width="100%" height={200}>
+            <PieChart>
+              <Pie data={EXPENSE_CATS} dataKey="amount" nameKey="category" cx="50%" cy="50%" outerRadius={80} label={({category,percent})=>`${(percent*100).toFixed(0)}%`} labelLine={false} fontSize={11}>
+                {EXPENSE_CATS.map((_,i)=><Cell key={i} fill={PIE_COLORS[i%PIE_COLORS.length]} />)}
+              </Pie>
+              <Tooltip formatter={v=>`₹${v.toLocaleString()}`} contentStyle={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:8,fontSize:11}} />
+            </PieChart>
+          </ResponsiveContainer>
+          <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:4,marginTop:8 }}>
+            {EXPENSE_CATS.map((c,i)=><div key={i} style={{ display:'flex',alignItems:'center',gap:6,fontSize:11,color:'var(--text2)' }}>
+              <div style={{ width:8,height:8,borderRadius:2,background:PIE_COLORS[i%PIE_COLORS.length],flexShrink:0 }}/>
+              <span style={{ overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>{c.category}</span>
+            </div>)}
+          </div>
+        </Card>
+      </div>
+      <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:16 }}>
+        <Card>
+          <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14 }}>
+            <h3 style={{ fontSize:14,fontWeight:700,color:'var(--text2)' }}>Recent Complaints</h3>
+            <Badge label="8 open" color="orange" />
+          </div>
+          {MOCK_COMPLAINTS.slice(0,3).map(c=>(
+            <div key={c.id} style={{ display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 0',borderBottom:'1px solid var(--border)' }}>
+              <div>
+                <div style={{ fontSize:13,fontWeight:600,color:'var(--text)',marginBottom:2 }}>{c.title}</div>
+                <div style={{ fontSize:11,color:'var(--text3)' }}>{c.category} • {fmtDate(c.created_at)}</div>
+              </div>
+              {statusBadge(c.status)}
+            </div>
+          ))}
+        </Card>
+        <Card>
+          <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14 }}>
+            <h3 style={{ fontSize:14,fontWeight:700,color:'var(--text2)' }}>Pending Bills</h3>
+            <Badge label="5 pending" color="red" />
+          </div>
+          {MOCK_BILLS.filter(b=>b.status!=='paid').slice(0,3).map(b=>(
+            <div key={b.id} style={{ display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 0',borderBottom:'1px solid var(--border)' }}>
+              <div>
+                <div style={{ fontSize:13,fontWeight:600,color:'var(--text)',marginBottom:2 }}>Flat {b.flat_no}</div>
+                <div style={{ fontSize:11,color:'var(--text3)' }}>{fmt(b.total_amount)} due</div>
+              </div>
+              {statusBadge(b.status)}
+            </div>
+          ))}
+        </Card>
+      </div>
+    </div>
+  );
+};
+
+// ─── SOCIETIES PAGE ───────────────────────────────────────────────────────────
+const SocietiesPage = () => {
+  const [societies, setSocieties] = useState(MOCK_SOCIETIES);
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm] = useState({name:'',code:'',city:'',state:'',total_units:''});
+  const { toast } = useApp();
+
+  const handleAdd = () => {
+    setSocieties(p=>[...p,{id:p.length+1,...form,total_units:Number(form.total_units),is_active:true,total_users:0}]);
+    setShowAdd(false); setForm({name:'',code:'',city:'',state:'',total_units:''});
+    toast('Society created successfully');
+  };
+
+  return (
+    <div style={{ padding:24,overflowY:'auto',flex:1 }} className="scrollbar">
+      <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20 }}>
+        <div><h2 style={{ fontSize:20,fontWeight:700 }}>Manage Societies</h2><p style={{ color:'var(--text3)',fontSize:13,marginTop:2 }}>Super Admin — All societies across the platform</p></div>
+        <Button onClick={()=>setShowAdd(true)}>+ Add Society</Button>
+      </div>
+      <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(340px,1fr))',gap:16 }}>
+        {societies.map(s=>(
+          <Card key={s.id} style={{ position:'relative' }}>
+            <div style={{ display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:14 }}>
+              <div style={{ display:'flex',alignItems:'center',gap:12 }}>
+                <div style={{ width:44,height:44,background:'var(--surface3)',borderRadius:12,display:'flex',alignItems:'center',justifyContent:'center',fontSize:20 }}>🏘️</div>
+                <div>
+                  <div style={{ fontSize:15,fontWeight:700 }}>{s.name}</div>
+                  <div style={{ fontSize:11,color:'var(--accent)',fontWeight:600 }}>{s.code}</div>
+                </div>
+              </div>
+              <Badge label={s.is_active?'Active':'Inactive'} color={s.is_active?'green':'gray'} />
+            </div>
+            <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:14 }}>
+              {[['📍 Location',`${s.city}, ${s.state}`],['🏠 Total Units',s.total_units],['👥 Users',s.total_users]].map(([k,v])=>(
+                <div key={k} style={{ background:'var(--surface2)',borderRadius:'var(--radius-sm)',padding:'8px 12px' }}>
+                  <div style={{ fontSize:11,color:'var(--text3)',marginBottom:2 }}>{k}</div>
+                  <div style={{ fontSize:13,fontWeight:600 }}>{v}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ display:'flex',gap:8 }}>
+              <Button variant="secondary" size="sm" style={{ flex:1 }}>View Dashboard</Button>
+              <Button variant="ghost" size="sm">Edit</Button>
+            </div>
+          </Card>
+        ))}
+      </div>
+      <Modal open={showAdd} onClose={()=>setShowAdd(false)} title="Add New Society">
+        <Input label="Society Name" value={form.name} onChange={v=>setForm(p=>({...p,name:v}))} required />
+        <Input label="Society Code" value={form.code} onChange={v=>setForm(p=>({...p,code:v}))} placeholder="e.g. SOC004" required />
+        <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:12 }}>
+          <Input label="City" value={form.city} onChange={v=>setForm(p=>({...p,city:v}))} />
+          <Input label="State" value={form.state} onChange={v=>setForm(p=>({...p,state:v}))} />
+        </div>
+        <Input label="Total Units" value={form.total_units} onChange={v=>setForm(p=>({...p,total_units:v}))} type="number" />
+        <div style={{ display:'flex',gap:10,justifyContent:'flex-end',marginTop:8 }}>
+          <Button variant="secondary" onClick={()=>setShowAdd(false)}>Cancel</Button>
+          <Button onClick={handleAdd}>Create Society</Button>
+        </div>
+      </Modal>
+    </div>
+  );
+};
+
+// ─── BILLING PAGE ─────────────────────────────────────────────────────────────
+const BillingPage = () => {
+  const [bills, setBills] = useState(MOCK_BILLS);
+  const [tab, setTab] = useState('bills');
+  const [showPay, setShowPay] = useState(null);
+  const [payForm, setPayForm] = useState({paid_amount:'',payment_mode:'UPI',reference_no:''});
+  const { toast } = useApp();
+
+  const handlePay = () => {
+    setBills(p=>p.map(b=>b.id===showPay?.id?{...b,status:'paid',paid_amount:b.total_amount}:b));
+    setShowPay(null); toast('Payment recorded successfully');
+  };
+
+  const billCols = [
+    {key:'flat_no',label:'Flat'},
+    {key:'bill_month',label:'Month',render:(v,r)=>`${v}/${r.bill_year}`},
+    {key:'total_amount',label:'Amount',render:v=>fmt(v)},
+    {key:'paid_amount',label:'Paid',render:v=>fmt(v)},
+    {key:'due_date',label:'Due Date',render:v=>fmtDate(v)},
+    {key:'status',label:'Status',render:v=>statusBadge(v)},
+    {key:'id',label:'Action',render:(v,r)=>r.status!=='paid'?<Button variant="success" size="sm" onClick={e=>{e.stopPropagation();setShowPay(r);}}>Pay</Button>:'—'},
+  ];
+
+  const summary = {
+    total: bills.reduce((s,b)=>s+b.total_amount,0),
+    collected: bills.reduce((s,b)=>s+b.paid_amount,0),
+    pending: bills.filter(b=>b.status==='pending').length,
+    overdue: bills.filter(b=>b.status==='overdue').length,
+  };
+
+  return (
+    <div style={{ padding:24,overflowY:'auto',flex:1 }} className="scrollbar">
+      <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20 }}>
+        <h2 style={{ fontSize:20,fontWeight:700 }}>Billing Management</h2>
+        <div style={{ display:'flex',gap:8 }}>
+          <Button variant="secondary">Generate Bulk Bills</Button>
+          <Button>+ Create Bill</Button>
+        </div>
+      </div>
+      <div style={{ display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12,marginBottom:20 }}>
+        {[
+          ['Total Billed',fmt(summary.total),'💰','accent'],
+          ['Collected',fmt(summary.collected),'✅','green'],
+          ['Pending',`${summary.pending} bills`,'⏰','orange'],
+          ['Overdue',`${summary.overdue} bills`,'🔴','red'],
+        ].map(([l,v,i,c])=><StatCard key={l} label={l} value={v} icon={i} color={c} />)}
+      </div>
+      <Card style={{ padding:0 }}>
+        <div style={{ padding:'16px 20px',borderBottom:'1px solid var(--border)',display:'flex',gap:12 }}>
+          {['bills','defaulters'].map(t=>(
+            <button key={t} onClick={()=>setTab(t)} style={{ padding:'6px 16px',borderRadius:'var(--radius-sm)',border:'none',background:tab===t?'var(--accent)':'transparent',color:tab===t?'#fff':'var(--text2)',cursor:'pointer',fontFamily:'inherit',fontWeight:600,fontSize:13,textTransform:'capitalize' }}>{t}</button>
+          ))}
+        </div>
+        <div style={{ padding:'0 0 0 0' }}>
+          <Table columns={billCols} data={tab==='bills'?bills:bills.filter(b=>b.status!=='paid')} />
+        </div>
+      </Card>
+      <Modal open={!!showPay} onClose={()=>setShowPay(null)} title={`Record Payment — Flat ${showPay?.flat_no}`} width={420}>
+        <div style={{ marginBottom:14,padding:'12px 14px',background:'var(--surface2)',borderRadius:'var(--radius-sm)',fontSize:13 }}>
+          <div style={{ display:'flex',justifyContent:'space-between' }}><span style={{color:'var(--text3)'}}>Total Due</span><strong>{fmt(showPay?.total_amount)}</strong></div>
+        </div>
+        <Input label="Amount" value={payForm.paid_amount} onChange={v=>setPayForm(p=>({...p,paid_amount:v}))} type="number" required />
+        <Select label="Payment Mode" value={payForm.payment_mode} onChange={v=>setPayForm(p=>({...p,payment_mode:v}))} options={['UPI','NEFT','RTGS','Cheque','Cash'].map(o=>({value:o,label:o}))} />
+        <Input label="Reference No" value={payForm.reference_no} onChange={v=>setPayForm(p=>({...p,reference_no:v}))} placeholder="Transaction ID / Cheque No" />
+        <div style={{ display:'flex',gap:10,justifyContent:'flex-end',marginTop:8 }}>
+          <Button variant="secondary" onClick={()=>setShowPay(null)}>Cancel</Button>
+          <Button variant="success" onClick={handlePay}>Record Payment</Button>
+        </div>
+      </Modal>
+    </div>
+  );
+};
+
+// ─── TRANSACTIONS (LEDGER) PAGE ───────────────────────────────────────────────
+const TransactionsPage = () => {
+  const [txns, setTxns] = useState(MOCK_TRANSACTIONS);
+  const [showAdd, setShowAdd] = useState(false);
+  const [filter, setFilter] = useState('all');
+  const [form, setForm] = useState({transaction_type:'income',category:'',amount:'',description:'',payment_mode:'UPI'});
+  const { toast } = useApp();
+
+  const handleAdd = () => {
+    setTxns(p=>[{id:p.length+1,...form,amount:Number(form.amount),transaction_date:new Date().toISOString()},...p]);
+    setShowAdd(false); toast('Transaction added successfully');
+  };
+
+  const filtered = filter==='all' ? txns : txns.filter(t=>t.transaction_type===filter);
+  const totalIncome = txns.filter(t=>t.transaction_type==='income').reduce((s,t)=>s+t.amount,0);
+  const totalExpense = txns.filter(t=>t.transaction_type==='expense').reduce((s,t)=>s+t.amount,0);
+
+  const cols = [
+    {key:'transaction_date',label:'Date',render:v=>fmtDate(v)},
+    {key:'transaction_type',label:'Type',render:v=><Badge label={v} color={v==='income'?'green':'red'} />},
+    {key:'category',label:'Category'},
+    {key:'description',label:'Description'},
+    {key:'amount',label:'Amount',render:v=>fmt(v)},
+    {key:'payment_mode',label:'Mode'},
+  ];
+
+  return (
+    <div style={{ padding:24,overflowY:'auto',flex:1 }} className="scrollbar">
+      <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20 }}>
+        <h2 style={{ fontSize:20,fontWeight:700 }}>Financial Ledger</h2>
+        <Button onClick={()=>setShowAdd(true)}>+ Add Transaction</Button>
+      </div>
+      <div style={{ display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12,marginBottom:20 }}>
+        <StatCard label="Total Income" value={fmt(totalIncome)} icon="📈" color="green" />
+        <StatCard label="Total Expense" value={fmt(totalExpense)} icon="📉" color="red" />
+        <StatCard label="Net Balance" value={fmt(totalIncome-totalExpense)} icon="💰" color={totalIncome>totalExpense?'accent':'orange'} />
+      </div>
+      <Card style={{ padding:0 }}>
+        <div style={{ padding:'16px 20px',borderBottom:'1px solid var(--border)',display:'flex',gap:8,alignItems:'center' }}>
+          {['all','income','expense'].map(f=>(
+            <button key={f} onClick={()=>setFilter(f)} style={{ padding:'5px 14px',borderRadius:'var(--radius-sm)',border:'none',background:filter===f?'var(--surface3)':'transparent',color:filter===f?'var(--text)':'var(--text3)',cursor:'pointer',fontFamily:'inherit',fontWeight:600,fontSize:12,textTransform:'capitalize' }}>{f}</button>
+          ))}
+          <div style={{ marginLeft:'auto',fontSize:12,color:'var(--text3)' }}>Showing {filtered.length} entries</div>
+        </div>
+        <Table columns={cols} data={filtered} />
+      </Card>
+      <Modal open={showAdd} onClose={()=>setShowAdd(false)} title="Add Transaction" width={440}>
+        <Select label="Type" value={form.transaction_type} onChange={v=>setForm(p=>({...p,transaction_type:v}))}
+          options={[{value:'income',label:'Income'},{value:'expense',label:'Expense'}]} />
+        <Input label="Category" value={form.category} onChange={v=>setForm(p=>({...p,category:v}))} placeholder="e.g. Maintenance, Electricity" required />
+        <Input label="Amount (₹)" value={form.amount} onChange={v=>setForm(p=>({...p,amount:v}))} type="number" required />
+        <Input label="Description" value={form.description} onChange={v=>setForm(p=>({...p,description:v}))} placeholder="Transaction details" />
+        <Select label="Payment Mode" value={form.payment_mode} onChange={v=>setForm(p=>({...p,payment_mode:v}))}
+          options={['UPI','NEFT','RTGS','Cheque','Cash'].map(o=>({value:o,label:o}))} />
+        <div style={{ display:'flex',gap:10,justifyContent:'flex-end',marginTop:8 }}>
+          <Button variant="secondary" onClick={()=>setShowAdd(false)}>Cancel</Button>
+          <Button onClick={handleAdd}>Add Transaction</Button>
+        </div>
+      </Modal>
+    </div>
+  );
+};
+
+// ─── COMPLAINTS PAGE ──────────────────────────────────────────────────────────
+const ComplaintsPage = () => {
+  const [complaints, setComplaints] = useState(MOCK_COMPLAINTS);
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm] = useState({title:'',category:'Plumbing',description:'',priority:'medium'});
+  const { toast } = useApp();
+
+  const handleAdd = () => {
+    setComplaints(p=>[{id:p.length+1,...form,status:'open',created_at:new Date().toISOString()},...p]);
+    setShowAdd(false); toast('Complaint raised successfully');
+  };
+
+  const updateStatus = (id, status) => {
+    setComplaints(p=>p.map(c=>c.id===id?{...c,status}:c));
+    toast('Status updated');
+  };
+
+  const cols = [
+    {key:'id',label:'#'},
+    {key:'title',label:'Title',render:v=><span style={{fontWeight:600}}>{v}</span>},
+    {key:'category',label:'Category'},
+    {key:'priority',label:'Priority',render:v=><Badge label={v} color={v==='high'?'red':v==='medium'?'orange':'gray'} />},
+    {key:'status',label:'Status',render:v=>statusBadge(v)},
+    {key:'created_at',label:'Date',render:v=>fmtDate(v)},
+    {key:'id',label:'Action',render:(v,r)=>r.status==='open'?<Button size="sm" variant="secondary" onClick={e=>{e.stopPropagation();updateStatus(v,'in_progress');}}>Assign</Button>:r.status==='in_progress'?<Button size="sm" variant="success" onClick={e=>{e.stopPropagation();updateStatus(v,'resolved');}}>Resolve</Button>:'—'},
+  ];
+
+  return (
+    <div style={{ padding:24,overflowY:'auto',flex:1 }} className="scrollbar">
+      <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20 }}>
+        <h2 style={{ fontSize:20,fontWeight:700 }}>Complaint Management</h2>
+        <Button onClick={()=>setShowAdd(true)}>+ Raise Complaint</Button>
+      </div>
+      <div style={{ display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12,marginBottom:20 }}>
+        {['open','in_progress','resolved','closed'].map((s,i)=>{
+          const count = complaints.filter(c=>c.status===s).length;
+          const colors = ['red','orange','green','gray'];
+          const icons = ['🔴','🟡','✅','🔒'];
+          return <StatCard key={s} label={s.replace('_',' ')} value={count} icon={icons[i]} color={colors[i]} />;
+        })}
+      </div>
+      <Card style={{ padding:0 }}><Table columns={cols} data={complaints} /></Card>
+      <Modal open={showAdd} onClose={()=>setShowAdd(false)} title="Raise Complaint" width={440}>
+        <Input label="Title" value={form.title} onChange={v=>setForm(p=>({...p,title:v}))} required />
+        <Select label="Category" value={form.category} onChange={v=>setForm(p=>({...p,category:v}))}
+          options={['Plumbing','Electrical','Security','Housekeeping','Lift','Parking','Other'].map(o=>({value:o,label:o}))} />
+        <Select label="Priority" value={form.priority} onChange={v=>setForm(p=>({...p,priority:v}))}
+          options={[{value:'low',label:'Low'},{value:'medium',label:'Medium'},{value:'high',label:'High'}]} />
+        <Input label="Description" value={form.description} onChange={v=>setForm(p=>({...p,description:v}))} placeholder="Describe the issue..." />
+        <div style={{ display:'flex',gap:10,justifyContent:'flex-end',marginTop:8 }}>
+          <Button variant="secondary" onClick={()=>setShowAdd(false)}>Cancel</Button>
+          <Button onClick={handleAdd}>Submit Complaint</Button>
+        </div>
+      </Modal>
+    </div>
+  );
+};
+
+// ─── VISITORS PAGE ────────────────────────────────────────────────────────────
+const VisitorsPage = () => {
+  const [visitors, setVisitors] = useState(MOCK_VISITORS);
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm] = useState({visitor_name:'',visitor_mobile:'',purpose:'',flat_no:'',is_delivery:false});
+  const { toast } = useApp();
+
+  const handleCheckin = (id) => {
+    setVisitors(p=>p.map(v=>v.id===id?{...v,status:'checked_in',check_in_time:new Date().toLocaleString()}:v));
+    toast('Visitor checked in');
+  };
+  const handleCheckout = (id) => {
+    setVisitors(p=>p.map(v=>v.id===id?{...v,status:'checked_out',check_out_time:new Date().toLocaleString()}:v));
+    toast('Visitor checked out');
+  };
+  const handleAdd = () => {
+    setVisitors(p=>[{id:p.length+1,...form,status:'pending',otp_code:Math.floor(100000+Math.random()*900000),created_at:new Date().toISOString()},...p]);
+    setShowAdd(false); toast('Visitor registered. OTP generated.');
+  };
+
+  const cols = [
+    {key:'visitor_name',label:'Visitor Name',render:v=><span style={{fontWeight:600}}>{v}</span>},
+    {key:'purpose',label:'Purpose'},
+    {key:'otp_code',label:'OTP',render:v=><span style={{fontFamily:'JetBrains Mono',fontWeight:700,color:'var(--accent)'}}>{v}</span>},
+    {key:'status',label:'Status',render:v=>statusBadge(v)},
+    {key:'check_in_time',label:'Check In',render:v=>v||'—'},
+    {key:'check_out_time',label:'Check Out',render:v=>v||'—'},
+    {key:'id',label:'Action',render:(v,r)=>r.status==='pending'?<Button size="sm" variant="success" onClick={e=>{e.stopPropagation();handleCheckin(v);}}>Check In</Button>:r.status==='checked_in'?<Button size="sm" variant="secondary" onClick={e=>{e.stopPropagation();handleCheckout(v);}}>Check Out</Button>:'—'},
+  ];
+
+  return (
+    <div style={{ padding:24,overflowY:'auto',flex:1 }} className="scrollbar">
+      <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20 }}>
+        <h2 style={{ fontSize:20,fontWeight:700 }}>Visitor Management</h2>
+        <Button onClick={()=>setShowAdd(true)}>+ Register Visitor</Button>
+      </div>
+      <div style={{ display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12,marginBottom:20 }}>
+        {[['Today\'s Visitors',visitors.length,'🚪','accent'],['Currently Inside',visitors.filter(v=>v.status==='checked_in').length,'👤','green'],['Pending Approval',visitors.filter(v=>v.status==='pending').length,'⏳','orange']].map(([l,v,i,c])=><StatCard key={l} label={l} value={v} icon={i} color={c} />)}
+      </div>
+      <Card style={{ padding:0 }}><Table columns={cols} data={visitors} /></Card>
+      <Modal open={showAdd} onClose={()=>setShowAdd(false)} title="Register Visitor" width={440}>
+        <Input label="Visitor Name" value={form.visitor_name} onChange={v=>setForm(p=>({...p,visitor_name:v}))} required />
+        <Input label="Mobile" value={form.visitor_mobile} onChange={v=>setForm(p=>({...p,visitor_mobile:v}))} />
+        <Input label="Purpose" value={form.purpose} onChange={v=>setForm(p=>({...p,purpose:v}))} placeholder="e.g. Meeting, Delivery, Repair" />
+        <Input label="Flat No" value={form.flat_no} onChange={v=>setForm(p=>({...p,flat_no:v}))} placeholder="e.g. A-101" />
+        <div style={{ display:'flex',gap:10,justifyContent:'flex-end',marginTop:8 }}>
+          <Button variant="secondary" onClick={()=>setShowAdd(false)}>Cancel</Button>
+          <Button onClick={handleAdd}>Register & Generate OTP</Button>
+        </div>
+      </Modal>
+    </div>
+  );
+};
+
+// ─── ANNOUNCEMENTS PAGE ───────────────────────────────────────────────────────
+const AnnouncementsPage = () => {
+  const [items, setItems] = useState(MOCK_ANNOUNCEMENTS);
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm] = useState({title:'',content:'',category:'general',is_pinned:false});
+  const { toast } = useApp();
+
+  const catColors = { general:'blue', event:'purple', notice:'orange', emergency:'red' };
+  const catIcons = { general:'📢', event:'🎉', notice:'⚠️', emergency:'🚨' };
+
+  const handleAdd = () => {
+    setItems(p=>[{id:p.length+1,...form,publish_date:new Date().toISOString()},...p]);
+    setShowAdd(false); toast('Announcement published');
+  };
+
+  return (
+    <div style={{ padding:24,overflowY:'auto',flex:1 }} className="scrollbar">
+      <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20 }}>
+        <h2 style={{ fontSize:20,fontWeight:700 }}>Announcements & Notices</h2>
+        <Button onClick={()=>setShowAdd(true)}>+ Post Announcement</Button>
+      </div>
+      <div style={{ display:'grid',gap:12 }}>
+        {items.map(a=>(
+          <Card key={a.id} style={{ position:'relative',borderLeft:`3px solid ${catColors[a.category]==='red'?'var(--red)':catColors[a.category]==='orange'?'var(--orange)':catColors[a.category]==='purple'?'#7c4fff':'var(--accent)'}` }}>
+            <div style={{ display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:16 }}>
+              <div style={{ flex:1 }}>
+                <div style={{ display:'flex',alignItems:'center',gap:8,marginBottom:8 }}>
+                  <span>{catIcons[a.category]||'📢'}</span>
+                  <span style={{ fontSize:15,fontWeight:700 }}>{a.title}</span>
+                  {a.is_pinned && <Badge label="Pinned" color="purple" />}
+                  <Badge label={a.category} color={catColors[a.category]||'blue'} />
+                </div>
+                <p style={{ fontSize:13,color:'var(--text2)',lineHeight:1.6 }}>{a.content}</p>
+                <div style={{ fontSize:11,color:'var(--text3)',marginTop:8 }}>{fmtDate(a.publish_date)}</div>
+              </div>
+              <button onClick={()=>setItems(p=>p.filter(i=>i.id!==a.id))} style={{ background:'none',border:'none',color:'var(--text3)',cursor:'pointer',fontSize:16,padding:'2px' }}>×</button>
+            </div>
+          </Card>
+        ))}
+      </div>
+      <Modal open={showAdd} onClose={()=>setShowAdd(false)} title="Post Announcement" width={480}>
+        <Input label="Title" value={form.title} onChange={v=>setForm(p=>({...p,title:v}))} required />
+        <Select label="Category" value={form.category} onChange={v=>setForm(p=>({...p,category:v}))}
+          options={['general','event','notice','emergency'].map(o=>({value:o,label:o.charAt(0).toUpperCase()+o.slice(1)}))} />
+        <div style={{ marginBottom:14 }}>
+          <label style={{ display:'block',fontSize:12,fontWeight:600,color:'var(--text2)',marginBottom:6,textTransform:'uppercase',letterSpacing:0.5 }}>Content</label>
+          <textarea value={form.content} onChange={e=>setForm(p=>({...p,content:e.target.value}))} rows={4}
+            style={{ width:'100%',background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:'var(--radius-sm)',padding:'9px 12px',color:'var(--text)',fontSize:13,fontFamily:'inherit',resize:'vertical' }} />
+        </div>
+        <div style={{ display:'flex',gap:10,justifyContent:'flex-end',marginTop:8 }}>
+          <Button variant="secondary" onClick={()=>setShowAdd(false)}>Cancel</Button>
+          <Button onClick={handleAdd}>Publish</Button>
+        </div>
+      </Modal>
+    </div>
+  );
+};
+
+// ─── ASSETS PAGE ──────────────────────────────────────────────────────────────
+const AssetsPage = () => {
+  const [assets, setAssets] = useState(MOCK_ASSETS);
+  const { toast } = useApp();
+  const catIcons = { Lift:'🛗', Generator:'⚡', Water:'💧', Garden:'🌿' };
+
+  return (
+    <div style={{ padding:24,overflowY:'auto',flex:1 }} className="scrollbar">
+      <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20 }}>
+        <h2 style={{ fontSize:20,fontWeight:700 }}>Asset Management</h2>
+        <Button>+ Add Asset</Button>
+      </div>
+      <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(300px,1fr))',gap:14 }}>
+        {assets.map(a=>(
+          <Card key={a.id}>
+            <div style={{ display:'flex',alignItems:'center',gap:12,marginBottom:14 }}>
+              <div style={{ width:44,height:44,background:'var(--surface3)',borderRadius:12,display:'flex',alignItems:'center',justifyContent:'center',fontSize:22 }}>{catIcons[a.category]||'⚙️'}</div>
+              <div>
+                <div style={{ fontWeight:700,fontSize:14 }}>{a.name}</div>
+                <div style={{ fontSize:12,color:'var(--text3)' }}>{a.category}</div>
+              </div>
+              <div style={{ marginLeft:'auto' }}>{statusBadge(a.status)}</div>
+            </div>
+            <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:12 }}>
+              {[['Purchase Value',fmt(a.purchase_value)],['Last Service',fmtDate(a.last_service_date)],['Next Service',fmtDate(a.next_service_date)]].map(([k,v])=>(
+                <div key={k} style={{ background:'var(--surface2)',borderRadius:'var(--radius-sm)',padding:'8px 10px' }}>
+                  <div style={{ fontSize:10,color:'var(--text3)',marginBottom:2 }}>{k}</div>
+                  <div style={{ fontSize:12,fontWeight:600 }}>{v}</div>
+                </div>
+              ))}
+            </div>
+            <Button variant="secondary" size="sm" style={{ width:'100%' }}>+ Log Service</Button>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// ─── VENDORS PAGE ─────────────────────────────────────────────────────────────
+const VendorsPage = () => {
+  const [vendors, setVendors] = useState(MOCK_VENDORS);
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm] = useState({name:'',category:'',contact_person:'',mobile:'',email:''});
+  const { toast } = useApp();
+
+  const handleAdd = () => {
+    setVendors(p=>[{id:p.length+1,...form,is_active:true,rating:0},...p]);
+    setShowAdd(false); toast('Vendor added');
+  };
+
+  const cols = [
+    {key:'name',label:'Vendor Name',render:v=><span style={{fontWeight:600}}>{v}</span>},
+    {key:'category',label:'Category'},
+    {key:'contact_person',label:'Contact'},
+    {key:'mobile',label:'Mobile'},
+    {key:'rating',label:'Rating',render:v=><span style={{color:'var(--yellow)'}}>{'★'.repeat(Math.round(v))} {v}</span>},
+    {key:'is_active',label:'Status',render:v=>statusBadge(v?'active':'inactive')},
+  ];
+
+  return (
+    <div style={{ padding:24,overflowY:'auto',flex:1 }} className="scrollbar">
+      <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20 }}>
+        <h2 style={{ fontSize:20,fontWeight:700 }}>Vendor Management</h2>
+        <Button onClick={()=>setShowAdd(true)}>+ Add Vendor</Button>
+      </div>
+      <Card style={{ padding:0 }}><Table columns={cols} data={vendors} /></Card>
+      <Modal open={showAdd} onClose={()=>setShowAdd(false)} title="Add Vendor" width={440}>
+        <Input label="Vendor Name" value={form.name} onChange={v=>setForm(p=>({...p,name:v}))} required />
+        <Select label="Category" value={form.category} onChange={v=>setForm(p=>({...p,category:v}))}
+          options={['Security','Housekeeping','Elevator','Plumbing','Electrical','Landscaping','Other'].map(o=>({value:o,label:o}))} />
+        <Input label="Contact Person" value={form.contact_person} onChange={v=>setForm(p=>({...p,contact_person:v}))} />
+        <Input label="Mobile" value={form.mobile} onChange={v=>setForm(p=>({...p,mobile:v}))} />
+        <Input label="Email" value={form.email} onChange={v=>setForm(p=>({...p,email:v}))} type="email" />
+        <div style={{ display:'flex',gap:10,justifyContent:'flex-end',marginTop:8 }}>
+          <Button variant="secondary" onClick={()=>setShowAdd(false)}>Cancel</Button>
+          <Button onClick={handleAdd}>Add Vendor</Button>
+        </div>
+      </Modal>
+    </div>
+  );
+};
+
+// ─── POLLS PAGE ───────────────────────────────────────────────────────────────
+const PollsPage = () => {
+  const [polls, setPolls] = useState([
+    {id:1,title:"Preferred time for water supply maintenance",options:["Morning 6-8 AM","Afternoon 2-4 PM","Evening 6-8 PM"],votes:[12,8,15],total_votes:35,is_active:true,user_voted:false},
+    {id:2,title:"Should we install CCTV in parking?",options:["Yes, strongly agree","Yes, with conditions","No, not required"],votes:[42,8,5],total_votes:55,is_active:true,user_voted:true},
+  ]);
+  const { toast } = useApp();
+
+  const handleVote = (pollId, optIdx) => {
+    setPolls(p=>p.map(pl=>pl.id===pollId?{...pl,user_voted:true,total_votes:pl.total_votes+1,votes:pl.votes.map((v,i)=>i===optIdx?v+1:v)}:pl));
+    toast('Vote recorded!');
+  };
+
+  return (
+    <div style={{ padding:24,overflowY:'auto',flex:1 }} className="scrollbar">
+      <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20 }}>
+        <h2 style={{ fontSize:20,fontWeight:700 }}>Polls & Voting</h2>
+        <Button>+ Create Poll</Button>
+      </div>
+      <div style={{ display:'grid',gap:16 }}>
+        {polls.map(p=>(
+          <Card key={p.id}>
+            <div style={{ display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:14 }}>
+              <h3 style={{ fontSize:15,fontWeight:700,flex:1,marginRight:16 }}>{p.title}</h3>
+              <Badge label={p.is_active?'Active':'Closed'} color={p.is_active?'green':'gray'} />
+            </div>
+            <div style={{ display:'grid',gap:8 }}>
+              {p.options.map((opt,i)=>{
+                const pct = p.total_votes>0?Math.round(p.votes[i]/p.total_votes*100):0;
+                return (
+                  <div key={i} style={{ position:'relative',overflow:'hidden' }}>
+                    <div style={{ position:'absolute',left:0,top:0,bottom:0,width:`${pct}%`,background:'var(--accent-glow)',borderRadius:'var(--radius-sm)',transition:'width 0.5s' }}/>
+                    <div style={{ position:'relative',display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 14px',border:'1px solid var(--border)',borderRadius:'var(--radius-sm)',cursor:(!p.user_voted&&p.is_active)?'pointer':'default' }}
+                      onClick={()=>!p.user_voted&&p.is_active&&handleVote(p.id,i)}>
+                      <span style={{ fontSize:13 }}>{opt}</span>
+                      <div style={{ display:'flex',alignItems:'center',gap:8,flexShrink:0 }}>
+                        <span style={{ fontSize:12,color:'var(--text3)' }}>{p.votes[i]} votes</span>
+                        <span style={{ fontSize:13,fontWeight:700,color:'var(--accent)',minWidth:36,textAlign:'right' }}>{pct}%</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ marginTop:10,fontSize:12,color:'var(--text3)' }}>Total: {p.total_votes} votes {p.user_voted&&'• You voted'}</div>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// ─── USERS PAGE ───────────────────────────────────────────────────────────────
+const UsersPage = () => {
+  const [users] = useState([
+    {id:1,full_name:'Rajesh Kumar',email:'rajesh@email.com',mobile:'9876543210',role:'admin',flat_id:null,is_active:true,is_approved:true,created_at:'2025-01-10'},
+    {id:2,full_name:'Priya Sharma',email:'priya@email.com',mobile:'9865432109',role:'resident',flat_id:1,is_active:true,is_approved:true,created_at:'2025-01-15'},
+    {id:3,full_name:'Amit Patel',email:'amit@email.com',mobile:'9854321098',role:'resident',flat_id:2,is_active:true,is_approved:false,created_at:'2025-03-20'},
+    {id:4,full_name:'Security Guard 1',email:'sec1@email.com',mobile:'9843210987',role:'staff',flat_id:null,is_active:true,is_approved:true,created_at:'2025-01-20'},
+  ]);
+  const { toast } = useApp();
+
+  const cols = [
+    {key:'full_name',label:'Name',render:v=><span style={{fontWeight:600}}>{v}</span>},
+    {key:'email',label:'Email'},
+    {key:'mobile',label:'Mobile'},
+    {key:'role',label:'Role',render:v=><Badge label={v} color={{superadmin:'purple',admin:'blue',resident:'green',staff:'orange',vendor:'gray'}[v]||'gray'} />},
+    {key:'is_approved',label:'Status',render:v=>statusBadge(v?'active':'pending')},
+    {key:'id',label:'Action',render:(v,r)=>!r.is_approved?<Button size="sm" variant="success" onClick={e=>{e.stopPropagation();toast('User approved');}}>Approve</Button>:<Button size="sm" variant="ghost">Edit</Button>},
+  ];
+
+  return (
+    <div style={{ padding:24,overflowY:'auto',flex:1 }} className="scrollbar">
+      <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20 }}>
+        <h2 style={{ fontSize:20,fontWeight:700 }}>User Management</h2>
+        <div style={{ display:'flex',gap:8 }}>
+          <Badge label={`${users.filter(u=>!u.is_approved).length} pending approval`} color="orange" size="md" />
+          <Button>+ Add User</Button>
+        </div>
+      </div>
+      <Card style={{ padding:0 }}><Table columns={cols} data={users} /></Card>
+    </div>
+  );
+};
+
+// ─── REPORTS PAGE ─────────────────────────────────────────────────────────────
+const ReportsPage = () => {
+  const { toast } = useApp();
+  const reports = [
+    {name:'Collection Report',desc:'Monthly/Yearly maintenance collection summary',icon:'💰',color:'#4f7cff'},
+    {name:'Defaulters List',desc:'List of flats with pending/overdue bills',icon:'⚠️',color:'#ef4444'},
+    {name:'Expense Report',desc:'Category-wise expense breakdown',icon:'📊',color:'#f97316'},
+    {name:'Budget vs Actual',desc:'Comparison of planned vs actual expenses',icon:'📈',color:'#22c55e'},
+    {name:'Audit Trail',desc:'Complete transaction audit log',icon:'🔍',color:'#7c4fff'},
+    {name:'Visitor Log',desc:'Daily/monthly visitor entry report',icon:'🚪',color:'#eab308'},
+    {name:'Asset Register',desc:'Complete asset inventory with valuations',icon:'⚙️',color:'#06b6d4'},
+    {name:'Vendor Payment Report',desc:'Vendor-wise payment and contract status',icon:'🤝',color:'#84cc16'},
+  ];
+  return (
+    <div style={{ padding:24,overflowY:'auto',flex:1 }} className="scrollbar">
+      <h2 style={{ fontSize:20,fontWeight:700,marginBottom:20 }}>Reports & Analytics</h2>
+      <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))',gap:14,marginBottom:24 }}>
+        {reports.map(r=>(
+          <Card key={r.name} style={{ cursor:'pointer',transition:'border-color 0.15s' }}
+            onMouseEnter={e=>e.currentTarget.style.borderColor=r.color}
+            onMouseLeave={e=>e.currentTarget.style.borderColor='var(--border)'}>
+            <div style={{ display:'flex',alignItems:'center',gap:12,marginBottom:10 }}>
+              <div style={{ width:42,height:42,background:`${r.color}20`,borderRadius:10,display:'flex',alignItems:'center',justifyContent:'center',fontSize:20 }}>{r.icon}</div>
+              <div style={{ fontWeight:700,fontSize:14 }}>{r.name}</div>
+            </div>
+            <p style={{ fontSize:12,color:'var(--text3)',lineHeight:1.5,marginBottom:14 }}>{r.desc}</p>
+            <div style={{ display:'flex',gap:8 }}>
+              <Button variant="secondary" size="sm" onClick={()=>toast('Generating Excel report...')} style={{ flex:1 }}>📥 Excel</Button>
+              <Button variant="secondary" size="sm" onClick={()=>toast('Generating PDF report...')} style={{ flex:1 }}>📄 PDF</Button>
+            </div>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// ─── AUDIT LOG PAGE ───────────────────────────────────────────────────────────
+const AuditPage = () => {
+  const logs = [
+    {id:1,action:'CREATE_TRANSACTION',entity_type:'transaction',user_id:1,new_values:{amount:35000,category:'Security'},created_at:'2025-03-22 09:15'},
+    {id:2,action:'UPDATE_COMPLAINT',entity_type:'complaint',user_id:1,new_values:{status:'in_progress'},created_at:'2025-03-22 08:30'},
+    {id:3,action:'BILL_PAYMENT',entity_type:'bill',user_id:2,new_values:{amount:3500,flat:'A-101'},created_at:'2025-03-21 18:45'},
+    {id:4,action:'CREATE_ANNOUNCEMENT',entity_type:'announcement',user_id:1,new_values:{title:'AGM Notice'},created_at:'2025-03-20 11:00'},
+  ];
+  const actionColors = { CREATE_TRANSACTION:'green', UPDATE_COMPLAINT:'orange', BILL_PAYMENT:'blue', CREATE_ANNOUNCEMENT:'purple' };
+  return (
+    <div style={{ padding:24,overflowY:'auto',flex:1 }} className="scrollbar">
+      <h2 style={{ fontSize:20,fontWeight:700,marginBottom:20 }}>Audit Log</h2>
+      <Card>
+        <div style={{ display:'grid',gap:0 }}>
+          {logs.map((l,i)=>(
+            <div key={l.id} style={{ display:'flex',alignItems:'flex-start',gap:14,padding:'14px 0',borderBottom:i<logs.length-1?'1px solid var(--border)':'none' }}>
+              <div style={{ width:8,height:8,borderRadius:'50%',background:PIE_COLORS[i%PIE_COLORS.length],marginTop:5,flexShrink:0 }}/>
+              <div style={{ flex:1 }}>
+                <div style={{ display:'flex',alignItems:'center',gap:8,marginBottom:4 }}>
+                  <Badge label={l.action.replace(/_/g,' ')} color={actionColors[l.action]||'gray'} />
+                  <span style={{ fontSize:12,color:'var(--text3)' }}>on {l.entity_type}</span>
+                </div>
+                <div style={{ fontSize:12,color:'var(--text2)',fontFamily:'JetBrains Mono' }}>
+                  {JSON.stringify(l.new_values)}
+                </div>
+              </div>
+              <div style={{ fontSize:11,color:'var(--text3)',flexShrink:0 }}>{l.created_at}</div>
+            </div>
+          ))}
+        </div>
+      </Card>
+    </div>
+  );
+};
+
+// ─── BUDGET PAGE ──────────────────────────────────────────────────────────────
+const BudgetPage = () => {
+  const budgets = [
+    {category:'Security',planned:420000,actual:408000},
+    {category:'Housekeeping',planned:180000,actual:175000},
+    {category:'Electricity',planned:240000,actual:228000},
+    {category:'Repairs & Maintenance',planned:120000,actual:168000},
+    {category:'Landscaping',planned:60000,actual:45000},
+    {category:'Admin & Misc',planned:80000,actual:72000},
+  ];
+  const totalPlanned = budgets.reduce((s,b)=>s+b.planned,0);
+  const totalActual = budgets.reduce((s,b)=>s+b.actual,0);
+
+  return (
+    <div style={{ padding:24,overflowY:'auto',flex:1 }} className="scrollbar">
+      <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20 }}>
+        <h2 style={{ fontSize:20,fontWeight:700 }}>Budget Planning</h2>
+        <Button>+ Add Budget Line</Button>
+      </div>
+      <div style={{ display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12,marginBottom:20 }}>
+        <StatCard label="Total Planned" value={fmt(totalPlanned)} icon="📋" color="accent" />
+        <StatCard label="Total Actual" value={fmt(totalActual)} icon="📊" color={totalActual>totalPlanned?'red':'green'} />
+        <StatCard label="Variance" value={fmt(totalPlanned-totalActual)} icon={totalActual>totalPlanned?'📉':'📈'} color={totalActual>totalPlanned?'red':'green'} />
+      </div>
+      <Card>
+        <h3 style={{ fontSize:14,fontWeight:700,marginBottom:16,color:'var(--text2)' }}>Budget vs Actual — FY 2024-25</h3>
+        <ResponsiveContainer width="100%" height={250}>
+          <BarChart data={budgets} barGap={4}>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+            <XAxis dataKey="category" tick={{fill:'var(--text3)',fontSize:11}} />
+            <YAxis tick={{fill:'var(--text3)',fontSize:11}} tickFormatter={v=>`₹${(v/1000).toFixed(0)}k`} />
+            <Tooltip formatter={v=>`₹${v.toLocaleString()}`} contentStyle={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:8,fontSize:12}} />
+            <Bar dataKey="planned" fill="#4f7cff" name="Planned" radius={[4,4,0,0]} />
+            <Bar dataKey="actual" fill="#f97316" name="Actual" radius={[4,4,0,0]} />
+          </BarChart>
+        </ResponsiveContainer>
+        <div style={{ display:'flex',gap:16,marginTop:8,fontSize:12 }}>
+          <div style={{ display:'flex',alignItems:'center',gap:6 }}><div style={{width:12,height:12,borderRadius:2,background:'#4f7cff'}}/><span style={{color:'var(--text2)'}}>Planned</span></div>
+          <div style={{ display:'flex',alignItems:'center',gap:6 }}><div style={{width:12,height:12,borderRadius:2,background:'#f97316'}}/><span style={{color:'var(--text2)'}}>Actual</span></div>
+        </div>
+      </Card>
+    </div>
+  );
+};
+
+// ─── SETTINGS PAGE ────────────────────────────────────────────────────────────
+const SettingsPage = () => {
+  const [tab, setTab] = useState('general');
+  const { toast } = useApp();
+  const [settings, setSettings] = useState({
+    app_name:'SocietyPro', currency:'INR', timezone:'Asia/Kolkata', date_format:'DD/MM/YYYY',
+    maintenance_due_day:'10', late_fee_percent:'2', auto_generate_bills:'true', penalty_grace_days:'5',
+    sms_enabled:'false', email_enabled:'false', whatsapp_enabled:'false',
+    sms_provider:'twilio', twilio_account_sid:'', twilio_auth_token:'', twilio_from_number:'',
+    email_provider:'smtp', smtp_host:'', smtp_port:'587', smtp_username:'', smtp_password:'', email_from:'noreply@societypro.com',
+    sendgrid_api_key:'',
+    whatsapp_provider:'twilio', whatsapp_from:'', wati_api_endpoint:'', wati_access_token:'',
+    db_type:'sqlite', sqlite_path:'./societypro.db', mssql_server:'', mssql_database:'', mssql_username:'', mssql_password:'',
+    session_timeout_minutes:'1440', require_otp_login:'false', password_min_length:'8',
+  });
+  const [dbTest, setDbTest] = useState(null);
+  const [notifTest, setNotifTest] = useState({ channel:'sms', recipient:'' });
+
+  const s = (key) => settings[key];
+  const set = (key, val) => setSettings(p=>({...p,[key]:val}));
+
+  const tabs = [
+    { id:'general', label:'General', icon:'⚙️' },
+    { id:'billing', label:'Billing', icon:'💰' },
+    { id:'notifications', label:'Notifications', icon:'🔔' },
+    { id:'sms', label:'SMS', icon:'📱' },
+    { id:'email', label:'Email', icon:'📧' },
+    { id:'whatsapp', label:'WhatsApp', icon:'💬' },
+    { id:'database', label:'Database', icon:'🗄️' },
+    { id:'security', label:'Security', icon:'🔒' },
+  ];
+
+  const handleSave = () => toast('Settings saved successfully');
+  const handleDbTest = () => { setDbTest({testing:true}); setTimeout(()=>setDbTest({success:true,message:`${s('db_type').toUpperCase()} connection successful`}),1000); };
+  const handleNotifTest = () => toast(`[Simulated] Test ${notifTest.channel} sent to ${notifTest.recipient}`);
+
+  const SectionTitle = ({children}) => <h3 style={{ fontSize:14,fontWeight:700,color:'var(--text2)',marginBottom:16,paddingBottom:8,borderBottom:'1px solid var(--border)',textTransform:'uppercase',letterSpacing:1 }}>{children}</h3>;
+  const Toggle = ({label, desc, k}) => (
+    <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',padding:'12px 0',borderBottom:'1px solid var(--border)' }}>
+      <div><div style={{ fontSize:13,fontWeight:600 }}>{label}</div>{desc&&<div style={{ fontSize:12,color:'var(--text3)',marginTop:2 }}>{desc}</div>}</div>
+      <button onClick={()=>set(k,s(k)==='true'?'false':'true')} style={{ width:44,height:24,borderRadius:12,border:'none',cursor:'pointer',background:s(k)==='true'?'var(--green)':'var(--border)',position:'relative',transition:'background 0.2s' }}>
+        <div style={{ position:'absolute',top:2,left:s(k)==='true'?22:2,width:20,height:20,borderRadius:10,background:'#fff',transition:'left 0.2s' }}/>
+      </button>
+    </div>
+  );
+
+  return (
+    <div style={{ display:'flex',flex:1,overflow:'hidden' }}>
+      {/* Settings Sidebar */}
+      <div style={{ width:200,borderRight:'1px solid var(--border)',background:'var(--surface)',padding:'16px 8px',flexShrink:0 }}>
+        <div style={{ fontSize:11,fontWeight:700,color:'var(--text3)',textTransform:'uppercase',letterSpacing:1,marginBottom:10,paddingLeft:8 }}>Settings</div>
+        {tabs.map(t=>(
+          <button key={t.id} onClick={()=>setTab(t.id)} style={{ width:'100%',display:'flex',alignItems:'center',gap:8,padding:'9px 12px',borderRadius:'var(--radius-sm)',border:'none',background:tab===t.id?'var(--accent-glow)':'transparent',color:tab===t.id?'var(--accent)':'var(--text2)',cursor:'pointer',fontFamily:'inherit',fontSize:13,fontWeight:tab===t.id?700:500,marginBottom:2,textAlign:'left' }}>
+            <span>{t.icon}</span>{t.label}
+          </button>
+        ))}
+      </div>
+      {/* Settings Content */}
+      <div style={{ flex:1,overflowY:'auto',padding:24 }} className="scrollbar">
+        {tab==='general' && <>
+          <SectionTitle>Application Settings</SectionTitle>
+          <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:12 }}>
+            <Input label="Application Name" value={s('app_name')} onChange={v=>set('app_name',v)} />
+            <Select label="Currency" value={s('currency')} onChange={v=>set('currency',v)} options={['INR','USD','EUR','GBP'].map(o=>({value:o,label:o}))} />
+            <Select label="Timezone" value={s('timezone')} onChange={v=>set('timezone',v)} options={['Asia/Kolkata','America/New_York','Europe/London','Asia/Singapore'].map(o=>({value:o,label:o}))} />
+            <Select label="Date Format" value={s('date_format')} onChange={v=>set('date_format',v)} options={['DD/MM/YYYY','MM/DD/YYYY','YYYY-MM-DD'].map(o=>({value:o,label:o}))} />
+          </div>
+        </>}
+        {tab==='billing' && <>
+          <SectionTitle>Billing Configuration</SectionTitle>
+          <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:12 }}>
+            <Input label="Maintenance Due Day" value={s('maintenance_due_day')} onChange={v=>set('maintenance_due_day',v)} type="number" />
+            <Input label="Late Fee %" value={s('late_fee_percent')} onChange={v=>set('late_fee_percent',v)} type="number" />
+            <Input label="Penalty Grace Days" value={s('penalty_grace_days')} onChange={v=>set('penalty_grace_days',v)} type="number" />
+          </div>
+          <Toggle label="Auto-generate Monthly Bills" desc="Automatically create bills on the 1st of each month" k="auto_generate_bills" />
+        </>}
+        {tab==='notifications' && <>
+          <SectionTitle>Notification Channels</SectionTitle>
+          <Toggle label="SMS Notifications" desc="Send SMS for payment reminders and alerts" k="sms_enabled" />
+          <Toggle label="Email Notifications" desc="Send emails for bills, complaints and announcements" k="email_enabled" />
+          <Toggle label="WhatsApp Notifications" desc="Send WhatsApp messages for all notifications" k="whatsapp_enabled" />
+          <div style={{ marginTop:20 }}>
+            <SectionTitle>Test Notification</SectionTitle>
+            <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr auto',gap:12,alignItems:'end' }}>
+              <Select label="Channel" value={notifTest.channel} onChange={v=>setNotifTest(p=>({...p,channel:v}))}
+                options={['sms','email','whatsapp'].map(o=>({value:o,label:o.toUpperCase()}))} />
+              <Input label="Recipient" value={notifTest.recipient} onChange={v=>setNotifTest(p=>({...p,recipient:v}))} placeholder="Mobile / Email" />
+              <div style={{ marginBottom:14 }}><Button onClick={handleNotifTest}>Send Test</Button></div>
+            </div>
+          </div>
+        </>}
+        {tab==='sms' && <>
+          <SectionTitle>SMS Configuration</SectionTitle>
+          <Select label="SMS Provider" value={s('sms_provider')} onChange={v=>set('sms_provider',v)} options={[{value:'twilio',label:'Twilio'},{value:'msg91',label:'MSG91'}]} />
+          {s('sms_provider')==='twilio'&&<>
+            <Input label="Twilio Account SID" value={s('twilio_account_sid')} onChange={v=>set('twilio_account_sid',v)} placeholder="ACxxxxxxxx" />
+            <Input label="Twilio Auth Token" value={s('twilio_auth_token')} onChange={v=>set('twilio_auth_token',v)} type="password" />
+            <Input label="From Number" value={s('twilio_from_number')} onChange={v=>set('twilio_from_number',v)} placeholder="+1234567890" />
+          </>}
+          {s('sms_provider')==='msg91'&&<Input label="MSG91 Auth Key" value={s('msg91_auth_key')||''} onChange={v=>set('msg91_auth_key',v)} type="password" />}
+        </>}
+        {tab==='email' && <>
+          <SectionTitle>Email Configuration</SectionTitle>
+          <Select label="Email Provider" value={s('email_provider')} onChange={v=>set('email_provider',v)} options={[{value:'smtp',label:'SMTP'},{value:'sendgrid',label:'SendGrid'}]} />
+          {s('email_provider')==='sendgrid'&&<Input label="SendGrid API Key" value={s('sendgrid_api_key')} onChange={v=>set('sendgrid_api_key',v)} type="password" placeholder="SG.xxxxx" />}
+          {s('email_provider')==='smtp'&&<>
+            <div style={{ display:'grid',gridTemplateColumns:'2fr 1fr',gap:12 }}>
+              <Input label="SMTP Host" value={s('smtp_host')} onChange={v=>set('smtp_host',v)} placeholder="smtp.gmail.com" />
+              <Input label="SMTP Port" value={s('smtp_port')} onChange={v=>set('smtp_port',v)} type="number" />
+            </div>
+            <Input label="SMTP Username" value={s('smtp_username')} onChange={v=>set('smtp_username',v)} />
+            <Input label="SMTP Password" value={s('smtp_password')} onChange={v=>set('smtp_password',v)} type="password" />
+          </>}
+          <Input label="From Email" value={s('email_from')} onChange={v=>set('email_from',v)} type="email" />
+        </>}
+        {tab==='whatsapp' && <>
+          <SectionTitle>WhatsApp Configuration</SectionTitle>
+          <Select label="Provider" value={s('whatsapp_provider')} onChange={v=>set('whatsapp_provider',v)} options={[{value:'twilio',label:'Twilio'},{value:'wati',label:'WATI'},{value:'gupshup',label:'Gupshup'}]} />
+          <Input label="WhatsApp From Number" value={s('whatsapp_from')} onChange={v=>set('whatsapp_from',v)} placeholder="+91xxxxxxxxxx" />
+          {s('whatsapp_provider')==='wati'&&<>
+            <Input label="WATI API Endpoint" value={s('wati_api_endpoint')} onChange={v=>set('wati_api_endpoint',v)} placeholder="https://live-mt-server.wati.io/..." />
+            <Input label="WATI Access Token" value={s('wati_access_token')} onChange={v=>set('wati_access_token',v)} type="password" />
+          </>}
+          <div style={{ padding:'14px',background:'var(--surface2)',borderRadius:'var(--radius-sm)',fontSize:12,color:'var(--text3)',marginTop:8 }}>
+            💡 WhatsApp notifications are sent for: Payment reminders, Complaint updates, Announcements, Visitor OTP
+          </div>
+        </>}
+        {tab==='database' && <>
+          <SectionTitle>Database Configuration</SectionTitle>
+          <div style={{ padding:'12px 14px',background:`rgba(79,124,255,0.08)`,border:'1px solid rgba(79,124,255,0.2)',borderRadius:'var(--radius-sm)',fontSize:13,color:'var(--text2)',marginBottom:16 }}>
+            ⚠️ Changing database settings will require application restart. Ensure data migration before switching.
+          </div>
+          <Select label="Database Type" value={s('db_type')} onChange={v=>set('db_type',v)} options={[{value:'sqlite',label:'SQLite (Default)'},{value:'mssql',label:'Microsoft SQL Server'}]} />
+          {s('db_type')==='sqlite'&&<Input label="SQLite File Path" value={s('sqlite_path')} onChange={v=>set('sqlite_path',v)} placeholder="./societypro.db" />}
+          {s('db_type')==='mssql'&&<>
+            <Input label="Server Address" value={s('mssql_server')} onChange={v=>set('mssql_server',v)} placeholder="localhost\\SQLEXPRESS or server:1433" />
+            <Input label="Database Name" value={s('mssql_database')} onChange={v=>set('mssql_database',v)} />
+            <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:12 }}>
+              <Input label="Username" value={s('mssql_username')} onChange={v=>set('mssql_username',v)} />
+              <Input label="Password" value={s('mssql_password')} onChange={v=>set('mssql_password',v)} type="password" />
+            </div>
+          </>}
+          <div style={{ display:'flex',gap:10,marginTop:8 }}>
+            <Button variant="secondary" onClick={handleDbTest}>{dbTest?.testing?'Testing...':'Test Connection'}</Button>
+            {dbTest && !dbTest.testing && <div style={{ display:'flex',alignItems:'center',gap:8,fontSize:13,color:dbTest.success?'var(--green)':'var(--red)' }}>
+              {dbTest.success?'✅':'❌'} {dbTest.message}
+            </div>}
+          </div>
+          <div style={{ marginTop:16,padding:'14px',background:'var(--surface2)',borderRadius:'var(--radius-sm)',fontSize:12,color:'var(--text3)' }}>
+            🔄 After switching to MSSQL, run data migration using: <code style={{fontFamily:'JetBrains Mono',color:'var(--accent)'}}>python migrate.py --from sqlite --to mssql</code>
+          </div>
+        </>}
+        {tab==='security' && <>
+          <SectionTitle>Security Settings</SectionTitle>
+          <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:16 }}>
+            <Input label="Session Timeout (minutes)" value={s('session_timeout_minutes')} onChange={v=>set('session_timeout_minutes',v)} type="number" />
+            <Input label="Min Password Length" value={s('password_min_length')} onChange={v=>set('password_min_length',v)} type="number" />
+          </div>
+          <Toggle label="Require OTP for Login" desc="Users must verify via OTP in addition to password" k="require_otp_login" />
+          <div style={{ marginTop:20 }}>
+            <SectionTitle>Active Sessions</SectionTitle>
+            <div style={{ fontSize:13,color:'var(--text2)',padding:'12px',background:'var(--surface2)',borderRadius:'var(--radius-sm)' }}>
+              Session management coming soon
+            </div>
+          </div>
+        </>}
+        <div style={{ marginTop:24,paddingTop:16,borderTop:'1px solid var(--border)',display:'flex',justifyContent:'flex-end',gap:10 }}>
+          <Button variant="secondary">Reset to Defaults</Button>
+          <Button onClick={handleSave}>Save Settings</Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── MAIN APP ─────────────────────────────────────────────────────────────────
+const PAGE_TITLES = {
+  dashboard:'Dashboard',societies:'Societies',users:'User Management',billing:'Billing',
+  transactions:'Financial Ledger',complaints:'Complaints',visitors:'Visitor Management',
+  announcements:'Announcements',assets:'Asset Management',vendors:'Vendors',budget:'Budget Planning',
+  polls:'Polls & Voting',reports:'Reports',audit:'Audit Log',settings:'Settings',
+};
+
+function App() {
+  const [user, setUser] = useState(null);
+  const [page, setPage] = useState('dashboard');
+  const [collapsed, setCollapsed] = useState(false);
+  const [toasts, setToasts] = useState([]);
+  const [societies] = useState(MOCK_SOCIETIES);
+  const [currentSociety, setCurrentSociety] = useState(null);
+
+  const toast = (message, type='success') => {
+    const id = Date.now();
+    setToasts(p=>[...p,{id,message,type}]);
+  };
+  const removeToast = (id) => setToasts(p=>p.filter(t=>t.id!==id));
+
+  if (!user) return (
+    <AppCtx.Provider value={{ toast }}>
+      <LoginPage onLogin={u=>setUser(u)} />
+      {toasts.map(t=><Toast key={t.id} {...t} onClose={()=>removeToast(t.id)} />)}
+    </AppCtx.Provider>
+  );
+
+  const pages = { dashboard:<DashboardPage society={currentSociety}/>, societies:<SocietiesPage/>, users:<UsersPage/>, billing:<BillingPage/>, transactions:<TransactionsPage/>, complaints:<ComplaintsPage/>, visitors:<VisitorsPage/>, announcements:<AnnouncementsPage/>, assets:<AssetsPage/>, vendors:<VendorsPage/>, budget:<BudgetPage/>, polls:<PollsPage/>, reports:<ReportsPage/>, audit:<AuditPage/>, settings:<SettingsPage/> };
+
+  return (
+    <AppCtx.Provider value={{ toast, user, societies, currentSociety }}>
+      <style>{`@keyframes slideIn { from { transform:translateX(20px);opacity:0; } to { transform:translateX(0);opacity:1; } }`}</style>
+      <Sidebar page={page} setPage={setPage} user={user} collapsed={collapsed} setCollapsed={setCollapsed} />
+      <div style={{ flex:1,display:'flex',flexDirection:'column',overflow:'hidden' }}>
+        <Header title={PAGE_TITLES[page]} user={user} onLogout={()=>setUser(null)} societies={societies} currentSociety={currentSociety} onSocietyChange={setCurrentSociety} />
+        <div style={{ flex:1,overflow:'hidden',display:'flex' }}>
+          {pages[page] || <div style={{ padding:24 }}>Page not found</div>}
+        </div>
+      </div>
+      {toasts.map(t=><Toast key={t.id} {...t} onClose={()=>removeToast(t.id)} />)}
+    </AppCtx.Provider>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
