@@ -7,8 +7,8 @@ import { useAuth } from '../contexts/AuthContext';
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
 export default function BillingPage() {
-  const { user } = useAuth();
-  const sid = user?.society_id ?? 1;
+  const { user, sid } = useAuth();
+  const { sid } = useAuth();
   const [bills, setBills]     = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab]         = useState('all');

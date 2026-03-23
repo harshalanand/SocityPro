@@ -10,8 +10,8 @@ const FALLBACK = [
 ];
 
 export default function PollsPage() {
-  const { user } = useAuth();
-  const sid = user?.society_id ?? 1;
+  const { user, sid } = useAuth();
+  const { sid } = useAuth();
   const [polls, setPolls]   = useState([]);
   const [loading, setLoading] = useState(true);
 

@@ -7,12 +7,11 @@ import { useAuth } from '../contexts/AuthContext';
 const PIE_COLORS = ['#4f7cff', '#7c4fff', '#22c55e', '#f97316', '#eab308', '#8892b0'];
 
 export default function DashboardPage() {
-  const { user } = useAuth();
+  const { user, sid: societyId } = useAuth();
   const [dashboard, setDashboard] = useState(null);
   const [loading, setLoading]     = useState(true);
 
   // Use first available society for non-superadmin, or society_id from user
-  const societyId = user?.society_id ?? 1;
 
   useEffect(() => {
     societiesApi.dashboard(societyId)

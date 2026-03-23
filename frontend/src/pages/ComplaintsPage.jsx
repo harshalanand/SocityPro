@@ -5,8 +5,8 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function ComplaintsPage() {
-  const { user } = useAuth();
-  const sid = user?.society_id ?? 1;
+  const { user, sid } = useAuth();
+  const { sid } = useAuth();
   const [complaints, setComplaints] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);

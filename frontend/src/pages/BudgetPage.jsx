@@ -14,8 +14,8 @@ const FALLBACK = [
 ];
 
 export default function BudgetPage() {
-  const { user } = useAuth();
-  const sid = user?.society_id ?? 1;
+  const { user, sid } = useAuth();
+  const { sid } = useAuth();
   const [budgets, setBudgets] = useState([]);
   const [loading, setLoading] = useState(true);
 

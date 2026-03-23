@@ -9,8 +9,8 @@ const CAT_ICONS  = { general:'📢', event:'🎉', notice:'⚠️', emergency:'�
 const CAT_BORDER = { general:'var(--accent)', event:'#7c4fff', notice:'var(--orange)', emergency:'var(--red)' };
 
 export default function AnnouncementsPage() {
-  const { user } = useAuth();
-  const sid = user?.society_id ?? 1;
+  const { user, sid } = useAuth();
+  const { sid } = useAuth();
   const [items, setItems]   = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);

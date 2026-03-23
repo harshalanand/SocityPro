@@ -7,8 +7,8 @@ import { useAuth } from '../contexts/AuthContext';
 const CAT_ICONS = { Lift:'🛗', Generator:'⚡', Water:'💧', Garden:'🌿', Security:'📷' };
 
 export default function AssetsPage() {
-  const { user } = useAuth();
-  const sid = user?.society_id ?? 1;
+  const { user, sid } = useAuth();
+  const { sid } = useAuth();
   const [assets, setAssets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showLog, setShowLog] = useState(null);

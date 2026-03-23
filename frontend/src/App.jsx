@@ -1,60 +1,33 @@
-/**
- * App.jsx — Root component + React Router setup
- *
- * Route layout:
- *   /login                     LoginPage
- *   /                          → redirect to /dashboard
- *   /dashboard                 DashboardPage
- *   /societies                 SocietiesPage          (superadmin)
- *   /users                     UsersPage              (admin+)
- *   /billing                   BillingPage
- *   /ledger                    TransactionsPage
- *   /complaints                ComplaintsPage
- *   /visitors                  VisitorsPage
- *   /announcements             AnnouncementsPage
- *   /assets                    AssetsPage             (admin+)
- *   /vendors                   VendorsPage            (admin+)
- *   /budget                    BudgetPage             (admin+)
- *   /polls                     PollsPage
- *   /reports                   ReportsPage            (admin+)
- *   /audit                     AuditPage              (admin+)
- *   /settings                  SettingsPage           (admin+)
- */
-
 import { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 
-// ── Lazy-loaded pages (all live in src/pages/) ──────────────────────────────
-const LoginPage        = lazy(() => import('./pages/LoginPage'));
-const AppLayout        = lazy(() => import('./layouts/AppLayout'));
-const DashboardPage    = lazy(() => import('./pages/DashboardPage'));
-const SocietiesPage    = lazy(() => import('./pages/SocietiesPage'));
-const UsersPage        = lazy(() => import('./pages/UsersPage'));
-const BillingPage      = lazy(() => import('./pages/BillingPage'));
-const TransactionsPage = lazy(() => import('./pages/TransactionsPage'));
-const ComplaintsPage   = lazy(() => import('./pages/ComplaintsPage'));
-const VisitorsPage     = lazy(() => import('./pages/VisitorsPage'));
-const AnnouncementsPage= lazy(() => import('./pages/AnnouncementsPage'));
-const AssetsPage       = lazy(() => import('./pages/AssetsPage'));
-const VendorsPage      = lazy(() => import('./pages/VendorsPage'));
-const BudgetPage       = lazy(() => import('./pages/BudgetPage'));
-const PollsPage        = lazy(() => import('./pages/PollsPage'));
-const ReportsPage      = lazy(() => import('./pages/ReportsPage'));
-const AuditPage        = lazy(() => import('./pages/AuditPage'));
-const SettingsPage     = lazy(() => import('./pages/SettingsPage'));
+const LoginPage         = lazy(() => import('./pages/LoginPage'));
+const AppLayout         = lazy(() => import('./layouts/AppLayout'));
+const DashboardPage     = lazy(() => import('./pages/DashboardPage'));
+const SocietiesPage     = lazy(() => import('./pages/SocietiesPage'));
+const UsersPage         = lazy(() => import('./pages/UsersPage'));
+const BillingPage       = lazy(() => import('./pages/BillingPage'));
+const TransactionsPage  = lazy(() => import('./pages/TransactionsPage'));
+const ComplaintsPage    = lazy(() => import('./pages/ComplaintsPage'));
+const VisitorsPage      = lazy(() => import('./pages/VisitorsPage'));
+const AnnouncementsPage = lazy(() => import('./pages/AnnouncementsPage'));
+const AssetsPage        = lazy(() => import('./pages/AssetsPage'));
+const VendorsPage       = lazy(() => import('./pages/VendorsPage'));
+const BudgetPage        = lazy(() => import('./pages/BudgetPage'));
+const PollsPage         = lazy(() => import('./pages/PollsPage'));
+const SettingsPage      = lazy(() => import('./pages/SettingsPage'));
 
-// ── Guards ──────────────────────────────────────────────────────────────────
-function RequireAuth({ children, roles }) {
-  const { user, loading } = useAuth();
-  if (loading) return <Spinner />;
-  if (!user) return <Navigate to="/login" replace />;
-  if (roles && !roles.includes(user.role) && user.role !== 'superadmin') {
-    return <Navigate to="/dashboard" replace />;
-  }
-  return children;
-}
+// Reports sub-pages
+const ReportsOverview   = lazy(() => import('./pages/reports/ReportsOverview'));
+const ReportCollection  = lazy(() => import('./pages/reports/ReportCollection'));
+const ReportDefaulters  = lazy(() => import('./pages/reports/ReportDefaulters'));
+const ReportExpenses    = lazy(() => import('./pages/reports/ReportExpenses'));
+const ReportBudget      = lazy(() => import('./pages/reports/ReportBudget'));
+const ReportVisitors    = lazy(() => import('./pages/reports/ReportVisitors'));
+const ReportAssets      = lazy(() => import('./pages/reports/ReportAssets'));
+const ReportAudit       = lazy(() => import('./pages/reports/ReportAudit'));
 
 function Spinner() {
   return (
@@ -65,36 +38,25 @@ function Spinner() {
   );
 }
 
-// ── App ──────────────────────────────────────────────────────────────────────
+function RequireAuth({ children, roles }) {
+  const { user, loading } = useAuth();
+  if (loading) return <Spinner />;
+  if (!user) return <Navigate to="/login" replace />;
+  if (roles && !roles.includes(user.role) && user.role !== 'superadmin') {
+    return <Navigate to="/dashboard" replace />;
+  }
+  return children;
+}
+
 export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <Toaster
-          position="bottom-right"
-          toastOptions={{
-            style: {
-              background: 'var(--surface)',
-              color: 'var(--text)',
-              border: '1px solid var(--border)',
-              fontSize: 13,
-            },
-          }}
-        />
+        <Toaster position="bottom-right" toastOptions={{ style: { background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--border)', fontSize: 13 } }} />
         <Suspense fallback={<Spinner />}>
           <Routes>
-            {/* Public */}
             <Route path="/login" element={<LoginPage />} />
-
-            {/* Protected — wrapped in shared layout */}
-            <Route
-              path="/"
-              element={
-                <RequireAuth>
-                  <AppLayout />
-                </RequireAuth>
-              }
-            >
+            <Route path="/" element={<RequireAuth><AppLayout /></RequireAuth>}>
               <Route index element={<Navigate to="/dashboard" replace />} />
               <Route path="dashboard"     element={<DashboardPage />} />
               <Route path="societies"     element={<RequireAuth roles={['superadmin']}><SocietiesPage /></RequireAuth>} />
@@ -108,12 +70,17 @@ export default function App() {
               <Route path="vendors"       element={<RequireAuth roles={['admin','superadmin']}><VendorsPage /></RequireAuth>} />
               <Route path="budget"        element={<RequireAuth roles={['admin','superadmin']}><BudgetPage /></RequireAuth>} />
               <Route path="polls"         element={<PollsPage />} />
-              <Route path="reports"       element={<RequireAuth roles={['admin','superadmin']}><ReportsPage /></RequireAuth>} />
-              <Route path="audit"         element={<RequireAuth roles={['admin','superadmin']}><AuditPage /></RequireAuth>} />
               <Route path="settings"      element={<RequireAuth roles={['admin','superadmin']}><SettingsPage /></RequireAuth>} />
+              {/* Reports sub-routes */}
+              <Route path="reports" element={<RequireAuth roles={['admin','superadmin']}><ReportsOverview /></RequireAuth>} />
+              <Route path="reports/collection" element={<RequireAuth roles={['admin','superadmin']}><ReportCollection /></RequireAuth>} />
+              <Route path="reports/defaulters" element={<RequireAuth roles={['admin','superadmin']}><ReportDefaulters /></RequireAuth>} />
+              <Route path="reports/expenses"   element={<RequireAuth roles={['admin','superadmin']}><ReportExpenses /></RequireAuth>} />
+              <Route path="reports/budget"     element={<RequireAuth roles={['admin','superadmin']}><ReportBudget /></RequireAuth>} />
+              <Route path="reports/visitors"   element={<RequireAuth roles={['admin','superadmin']}><ReportVisitors /></RequireAuth>} />
+              <Route path="reports/assets"     element={<RequireAuth roles={['admin','superadmin']}><ReportAssets /></RequireAuth>} />
+              <Route path="reports/audit"      element={<RequireAuth roles={['admin','superadmin']}><ReportAudit /></RequireAuth>} />
             </Route>
-
-            {/* Catch-all */}
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </Suspense>

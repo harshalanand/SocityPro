@@ -5,8 +5,7 @@ const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
-    const saved = localStorage.getItem('user');
-    return saved ? JSON.parse(saved) : null;
+    try { return JSON.parse(localStorage.getItem('user')); } catch { return null; }
   });
   const [loading, setLoading] = useState(true);
 
@@ -37,12 +36,31 @@ export function AuthProvider({ children }) {
   };
 
   const isSuperAdmin = user?.role === 'superadmin';
-  const isAdmin = user?.role === 'admin' || isSuperAdmin;
-  const isResident = user?.role === 'resident';
-  const isStaff = user?.role === 'staff';
+  const isAdmin      = user?.role === 'admin' || isSuperAdmin;
+  const isResident   = user?.role === 'resident';
+  const isStaff      = user?.role === 'staff';
+
+  // The society ID this user operates on.
+  // SuperAdmin defaults to 1 (can be overridden via header selector).
+  // Admin/Resident are locked to their own society.
+  const [activeSocietyId, setActiveSocietyId] = useState(
+    () => user?.society_id ?? 1
+  );
+
+  // When user changes (login/logout), reset activeSocietyId
+  useEffect(() => {
+    setActiveSocietyId(user?.society_id ?? 1);
+  }, [user?.id]);
+
+  const sid = isSuperAdmin ? activeSocietyId : (user?.society_id ?? 1);
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading, isSuperAdmin, isAdmin, isResident, isStaff }}>
+    <AuthContext.Provider value={{
+      user, login, logout, loading,
+      isSuperAdmin, isAdmin, isResident, isStaff,
+      sid,                          // active society id for API calls
+      activeSocietyId, setActiveSocietyId,
+    }}>
       {children}
     </AuthContext.Provider>
   );

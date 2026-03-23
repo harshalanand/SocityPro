@@ -7,7 +7,7 @@ import { useAuth } from '../contexts/AuthContext';
 const ROLE_COLORS = { superadmin: 'purple', admin: 'blue', resident: 'green', staff: 'orange', vendor: 'gray' };
 
 export default function UsersPage() {
-  const { user: me } = useAuth();
+  const { user: me, sid } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
@@ -15,7 +15,7 @@ export default function UsersPage() {
   const f = (k) => (v) => setForm((p) => ({ ...p, [k]: v }));
 
   useEffect(() => {
-    usersApi.list({ society_id: me?.society_id }).then((r) => setUsers(r.data)).finally(() => setLoading(false));
+    usersApi.list({ society_id: sid }).then((r) => setUsers(r.data)).finally(() => setLoading(false));
   }, []);
 
   const handleApprove = async (id) => {
