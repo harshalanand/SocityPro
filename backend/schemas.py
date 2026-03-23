@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, field_validator
 from typing import Optional, List, Any
 from datetime import datetime
 from models import UserRole, ResidentType, ComplaintStatus, TransactionType, PaymentStatus, NotificationChannel
@@ -89,7 +89,7 @@ class FlatResponse(BaseModel):
 
 class UserCreate(BaseModel):
     full_name: str
-    email: EmailStr
+    email: str
     mobile: str
     password: str
     role: UserRole = UserRole.RESIDENT
@@ -99,7 +99,7 @@ class UserCreate(BaseModel):
 
 class UserUpdate(BaseModel):
     full_name: Optional[str] = None
-    email: Optional[EmailStr] = None
+    email: Optional[str] = None
     mobile: Optional[str] = None
     role: Optional[UserRole] = None
     flat_id: Optional[int] = None
