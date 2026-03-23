@@ -82,3 +82,12 @@ def require_society_access(society_id: int, current_user: User = Depends(get_cur
     if current_user.society_id != society_id:
         raise HTTPException(status_code=403, detail="Access denied for this society")
     return current_user
+
+# ─── TOTP stubs (pyotp removed for Python 3.13 compatibility) ────────────────
+def get_totp_secret() -> str:
+    import secrets, base64
+    return base64.b32encode(secrets.token_bytes(20)).decode()
+
+def verify_totp(secret: str, token: str) -> bool:
+    # Full TOTP verification requires pyotp — install separately if needed
+    return False

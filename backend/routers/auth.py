@@ -7,7 +7,7 @@ from models import User, UserRole, AuditLog
 from schemas import LoginRequest, OTPRequest, OTPVerify, TokenResponse, UserCreate
 from auth import (
     hash_password, verify_password, create_access_token,
-    generate_otp, get_totp_secret, get_current_user
+    generate_otp, get_current_user
 )
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
