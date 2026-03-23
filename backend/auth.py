@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from typing import Optional
-import jwt
-from jwt.exceptions import InvalidTokenError
+import jwt  # PyJWT
+
 from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -31,7 +31,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 def decode_token(token: str) -> dict:
     try:
         return jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-    except InvalidTokenError:
+    except Exception:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
 def generate_otp() -> str:
