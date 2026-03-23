@@ -1,11 +1,12 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
-from jose import JWTError, jwt
+import jwt
+from jwt.exceptions import InvalidTokenError
 from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
-import pyotp, random, string
+import random, string
 
 from config import settings
 from database import get_db
@@ -23,25 +24,18 @@ def verify_password(plain: str, hashed: str) -> bool:
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()
-    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES))
+    expire = datetime.now(timezone.utc) + (expires_delta or timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES))
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 def decode_token(token: str) -> dict:
     try:
         return jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-    except JWTError:
+    except InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
 def generate_otp() -> str:
     return "".join(random.choices(string.digits, k=6))
-
-def get_totp_secret() -> str:
-    return pyotp.random_base32()
-
-def verify_totp(secret: str, token: str) -> bool:
-    totp = pyotp.TOTP(secret)
-    return totp.verify(token, valid_window=2)
 
 
 # ─── Dependencies ─────────────────────────────────────────────────────────────
@@ -59,6 +53,9 @@ def get_current_user(
         raise HTTPException(status_code=401, detail="User not found or inactive")
     return user
 
+def get_current_active_user(current_user: User = Depends(get_current_user)) -> User:
+    return current_user
+
 def require_role(*roles: UserRole):
     def checker(current_user: User = Depends(get_current_user)):
         if current_user.role not in roles:
@@ -71,13 +68,15 @@ def require_superadmin(current_user: User = Depends(get_current_user)):
         raise HTTPException(status_code=403, detail="SuperAdmin access required")
     return current_user
 
-def require_admin_or_above(current_user: User = Depends(get_current_user)):
+def require_admin(current_user: User = Depends(get_current_user)):
     if current_user.role not in [UserRole.SUPERADMIN, UserRole.ADMIN]:
         raise HTTPException(status_code=403, detail="Admin access required")
     return current_user
 
+# alias used in some routers
+require_admin_or_above = require_admin
+
 def require_society_access(society_id: int, current_user: User = Depends(get_current_user)):
-    """Ensure user belongs to the requested society (or is superadmin)"""
     if current_user.role == UserRole.SUPERADMIN:
         return current_user
     if current_user.society_id != society_id:
